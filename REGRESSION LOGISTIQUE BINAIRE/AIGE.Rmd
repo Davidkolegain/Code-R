@@ -1,0 +1,723 @@
+---
+title: "Rapport d'analyse AIGE"
+author: "KYD"
+date: "2022-08-11"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+#Chargement des donnees  et des packages
+```{r}
+library(tidyverse);library(labelled);library(questionr);library(gtsummary)
+library(readxl);library(GGally);library(finalfit);library("writexl")
+
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")
+
+data_AIGE <- read_excel("bdd_data_AIGE_aige_legeek_15082022.xlsx")
+data_AIGE_type_vaccin <- read_excel("Data/bdd_data_AIGE_aige_legeek_15082022.xlsx", 
+    sheet = "vaccin")
+```
+
+#Recodage
+
+```{r recodage}
+## Recodage de data_AIGE$`101. Âge`
+data_AIGE$`101. Âge` <- as.numeric(data_AIGE$`101. Âge`)
+## Recodage de data_AIGE$`101. Âge`
+data_AIGE$`101. Âge` <- as.character(data_AIGE$`101. Âge`)
+data_AIGE$`101. Âge` <- as.numeric(data_AIGE$`101. Âge`)
+data_AIGE$age <- data_AIGE$`101. Âge`
+## Recodage de data_AIGE[,"101. Âge"] en data_AIGE$agebis
+data_AIGE$agebis <- cut(data_AIGE$age,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(5, 30, 40, 48, 364),
+  labels = c("<30","30-39","40-47","48+")
+)
+
+## Recodage de data_AIGE$`106. Lieu de provenance`
+data_AIGE$`106. Lieu de provenance` <- data_AIGE$`106. Lieu de provenance` %>%
+  fct_recode(
+    "Afrique de l’Ouest et du Nord" = "Afrique de l’Ouest",
+    "Afrique de l’Ouest et du Nord" = "Afrique du Nord"
+  )
+## Recodage de data_AIGE$`108. Le pays d’où vous venez exige quel document sanitaire pour voyager ?`
+data_AIGE$`108. Le pays d’où vous venez exige quel document sanitaire pour voyager ?` <- data_AIGE$`108. Le pays d’où vous venez exige quel document sanitaire pour voyager ?` %>%
+  fct_recode(
+    "Pass vaccinal ou test antigénique PCR" = "L’un ou l’autre",
+    "Pass vaccinal et test antigénique PCR" = "Les deux"
+  ) %>%
+  fct_explicit_na("Aucun")
+## Recodage de data_AIGE$`109. Le pays où vous vous rendez exige quel document sanitaire pour voyager ?`
+data_AIGE$`109. Le pays où vous vous rendez exige quel document sanitaire pour voyager ?` <- data_AIGE$`109. Le pays où vous vous rendez exige quel document sanitaire pour voyager ?` %>%
+  fct_recode(
+    "Pass vaccinal ou test antigénique PCR" = "L’un ou l’autre",
+    "Pass vaccinal et test antigénique PCR" = "Les deux"
+  ) %>%
+  fct_explicit_na("Aucun")
+## Recodage de data_AIGE$`303. Avec quel document sanitaire voyagez -vous actuellement ?`
+data_AIGE$`303. Avec quel document sanitaire voyagez -vous actuellement ?` <- data_AIGE$`303. Avec quel document sanitaire voyagez -vous actuellement ?` %>%
+  fct_explicit_na("Aucun")
+
+## Recodage de data_AIGE$`402. L’enquêté porte -t-il correctement un masque ?`
+data_AIGE$`402. L’enquêté porte -t-il correctement un masque ?` <- data_AIGE$`402. L’enquêté porte -t-il correctement un masque ?` %>%
+  fct_explicit_na("Masque non porté")
+## Recodage de data_AIGE$`Pays de résidence`
+data_AIGE$`Pays de résidence` <- data_AIGE$`Pays de résidence` %>%
+  fct_recode(
+    "Côte d'ivoire" = "Abidjan",
+    "Côte d'ivoire" = "ABIDJAN",
+    "NIGERIA" = "Abuja",
+    "Afrique du sud" = "Afrique  du Sud",
+    "Afrique du sud" = "AFRIQUE DU SUD",
+    "Allemagne" = "All",
+    "Allemagne" = "ALLEMAGNE",
+    "Amérique" = "Amerique",
+    "Amérique" = "AMERIQUE",
+    "Amérique" = "AMÉRIQUE",
+    "Angleterre" = "ANGLETERRE",
+    "Amérique" = "ATLALTA",
+    "Bamaco" = "BAMACO",
+    "Bamaco" = "Bamako",
+    "Bamaco" = "BAMAKO",
+    "Belgique" = "Be",
+    "Bénin" = "Benin",
+    "Bénin" = "BENIN",
+    "Burkina Faso" = "Bf",
+    "Burkina Faso" = "BF",
+    "Burkina Faso" = "BOURKINA FASO",
+    "Belgique" = "Bruxelles",
+    "Belgique" = "BUR",
+    "Burkina Faso" = "Burkina",
+    "Burkina Faso" = "BURKINA",
+    "Burkina Faso" = "Burkina faso",
+    "Burkina Faso" = "BURKINA FASO",
+    "Burkina Faso" = "BURKINA FASSO",
+    "Burkina Faso" = "BURKINA. FASO",
+    "Burkina Faso" = "Burkinafaso",
+    "Burkina Faso" = "BURKINAFASO",
+    "Côte d'ivoire" = "C",
+    "Côte d'ivoire" = "C I",
+    "Cameroun" = "Caem",
+    "Cameroun" = "Cameron",
+    "Cameroun" = "CAMEROUN",
+    "Cameroun" = "Caméroun",
+    "Cameroun" = "CAMEROUNE",
+    "Canada" = "CANADA",
+    "Centrafrique" = "CENTRAFRIQUE",
+    "Centrafrique" = "Centre Afrique",
+    "Centrafrique" = "CENTRE AFRIQUE",
+    "Centrafrique" = "Centre efr",
+    "Chine" = "CHINE",
+    "Côte d'ivoire" = "Ci",
+    "Côte d'ivoire" = "CI",
+    "Congo" = "CO",
+    "Congo" = "CONGO",
+    "Congo" = "Congo Brazzaville",
+    "Congo" = "Congo Kinshasa",
+    "Côte d'ivoire" = "Cote d'ivoire",
+    "Côte d'ivoire" = "COte d'ivoire",
+    "Côte d'ivoire" = "COTE D'IVOIRE",
+    "Côte d'ivoire" = "Côte d'Ivoire",
+    "Côte d'ivoire" = "Côté d'ivoire",
+    "Côte d'ivoire" = "Côté d'Ivoire",
+    "Côte d'ivoire" = "COTE D IVOIR",
+    "Côte d'ivoire" = "COTE D IVOIRE",
+    "Côte d'ivoire" = "Cote ivoire",
+    "Côte d'ivoire" = "COTE IVOIRE",
+    "Cameroun" = "Czmeroun",
+    "Senegal" = "Dakar",
+    "Senegal" = "DAKAR",
+    "Cameroun" = "Douala",
+    "Emirates Arabes Unis" = "Doubai",
+    "Emirates Arabes Unis" = "DUBAI",
+    "Emirates Arabes Unis" = "DUBAÏ",
+    "Amérique" = "Etat un",
+    "Amérique" = "Etat uni",
+    "Amérique" = "ETAT UNIE",
+    "Amérique" = "ETAT UNIS",
+    "Amérique" = "Etats unis",
+    "Amérique" = "Etats Unis",
+    "Ethiopie" = "ETCHIOPI",
+    "France" = "FFANCE",
+    "France" = "Fg",
+    "France" = "FRANCE",
+    "Amérique" = "Furkin",
+    "Gabon" = "GABON",
+    "Gabon" = "GAGBON",
+    "Ghana" = "Gbana",
+    "Allemagne" = "GENEVE",
+    "Ghana" = "ghana",
+    "Ghana" = "GHANA",
+    "Ghana" = "GHANZ",
+    "Amérique" = "GORGIE",
+    "Guinée" = "GUINÉE",
+    "Guinée" = "GUINÉE CONA",
+    "Guinée" = "GUINEE CONACRI",
+    "Guinée" = "Guinée Conacry",
+    "Guinée" = "GUINÉE CONAKRY",
+    "Guinée" = "Guinée equatoriale",
+    "Guinée" = "Guinée Equatoriale",
+    "Guinée" = "Guinée équatoriale",
+    "Guinée" = "GUINÉE ÉQUATORIALE",
+    "Inde" = "INDE",
+    "Inde" = "INDIA",
+    "Italie" = "ITALIE",
+    "Afrique du sud" = "Johannesburg",
+    "Congo" = "Kingshasa",
+    "Congo" = "Kinshasa",
+    "Congo" = "Kinshasha",
+    "Congo" = "Kis",
+    "Congo" = "KONACRY",
+    "Congo" = "KONAKRI",
+    "Congo" = "Kongo Braza",
+    "Gabon" = "Libreville",
+    "Togo" = "Lome",
+    "Togo" = "LOME",
+    "Togo" = "Lomé",
+    "Togo" = "Londre",
+    "Mali" = "MALI",
+    "Mali" = "Malie",
+    "Maroc" = "MAROC",
+    "Amérique" = "New york",
+    "Amérique" = "New York",
+    "Niger" = "NIAME",
+    "Niger" = "Niamey",
+    "Niger" = "NIGER",
+    "Nigeria" = "NIGERIA",
+    "Nigeria" = "Nigéria",
+    "Burkina Faso" = "Ouagadougou",
+    "Burkina Faso" = "OUAGADOUGOU",
+    "France" = "Paris",
+    "France" = "PARIS",
+    "Congo" = "RDC",
+    "Senegal" = "SENEGAL",
+    "Senegal" = "Senégal",
+    "Senegal" = "Sénégal",
+    "Senegal" = "SÉNÉGAL",
+    "France" = "Senez",
+    "Chine" = "SHANGHAÏ",
+    "Liberia" = "Sierra Leone",
+    "Liberia" = "SIERRA LEONE",
+    "Zimbawe" = "SIMBABWE",
+    "Afrique du Sud" = "Sud Afrique",
+    "Afrique du Sud" = "SUD SOUDAN",
+    "Suisse" = "SUISSE",
+    "Tchad" = "T",
+    "Tchad" = "TCHAD",
+    "Tchad" = "Tchade",
+    "Tchad" = "Tchadi",
+    "Tchad" = "THAD",
+    "Togo" = "TOGO",
+    "Amérique" = "Usa",
+    "Amérique" = "UsA",
+    "Amérique" = "USA",
+    "Amérique" = "Washington",
+    "Amérique" = "WASHINGTON",
+    "Centrafrique" = "Xentrafi",
+    "Cameroun" = "YAOUNDÉ"
+  )
+
+## Recodage de data_AIGE$`105. Niveau d’étude`
+data_AIGE$`105. Niveau d’étude` <- data_AIGE$`105. Niveau d’étude` %>%
+  fct_explicit_na("Non scolarisé/primaire")
+## Recodage de data_AIGE$`103. Statut matrimonial`
+data_AIGE$`103. Statut matrimonial` <- data_AIGE$`103. Statut matrimonial` %>%
+  fct_explicit_na("Célibataire")
+
+## Recodage de data_AIGE$positivite en data_AIGE$positivite_bis
+data_AIGE$positivite_bis <- cut(data_AIGE$positivite,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(1, 2,15),
+  labels = c("1","2+")
+)
+
+
+#les trois  difficultés les plus fréquentes 
+freq(data_AIGE$`401.1. Si oui quelles difficultés ?`)
+
+## Recoding data_AIGE$`401.1. Si oui quelles difficultés ?` into data_AIGE$` Si oui quelles difficultés ?`
+data_AIGE$` Si oui quelles difficultés ?` <- data_AIGE$`401.1. Si oui quelles difficultés ?`
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Autres (préciser)"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Autres (préciser)"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Multiples points de contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Test PCR demandé aux enfants/bébés non vaccinés  Autres (préciser)"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Tracasseries par les agents du service sanitaire à l’aéroport"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Tracasseries par les agents du service sanitaire à l’aéroport   Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Trop de documents à remplir"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Trop de documents à remplir  Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Trop de documents à remplir  Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Trop de documents à remplir  Tracasseries par les agents du service sanitaire à l’aéroport"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Trop de documents à remplir  Tracasseries par les agents du service sanitaire à l’aéroport   Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Enregistrement en ligne complexe  Trop de documents à remplir  Tracasseries par les agents du service sanitaire à l’aéroport   Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Autres (préciser)"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Tracasseries par les agents du service sanitaire à l’aéroport"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Trop de documents à remplir"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Trop de documents à remplir  Multiples points de contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Trop de documents à remplir  Tracasseries par les agents du service sanitaire à l’aéroport"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Enregistrement en ligne complexe  Trop de documents à remplir  Tracasseries par les agents du service sanitaire à l’aéroport   Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Multiples points de contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Tracasseries par les agents du service sanitaire à l’aéroport   Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Trop de documents à remplir"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Trop de documents à remplir  Multiples points de contrôle sanitaire"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Trop de documents à remplir  Multiples points de contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Temps d’attente trop long au niveau du contrôle sanitaire Trop de documents à remplir  Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Tracasseries par les agents du service sanitaire à l’aéroport   Autres (préciser)"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Tracasseries par les agents du service sanitaire à l’aéroport   Multiples points de contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Trop de documents à remplir"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Trop de documents à remplir  Multiples points de contrôle sanitaire Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+data_AIGE$` Si oui quelles difficultés ?`[data_AIGE$`401.1. Si oui quelles difficultés ?` == "Trop de documents à remplir  Test PCR demandé aux enfants/bébés non vaccinés"] <- "Autres"
+```
+#Etiquette de variable
+```{r etiquette}
+data_AIGE <- data_AIGE%>%
+  set_variable_labels(
+  "101. Âge" = "Âge (ans)",
+  "102. Sexe" = "Sexe",
+  "agebis" = "Classe d'âge (ans)",
+  "105. Niveau d’étude" = "Niveau d’étude",
+  "103. Statut matrimonial" = "Statut matrimonial",
+  "104. A quelle catégorie de passager appartenez-vous"="A quelle catégorie de passager appartenez-vous",
+    "106. Lieu de provenance" = "Lieu de provenance ",
+  "107. Destination" = "Destination"
+  , "108. Le pays d’où vous venez exige quel document sanitaire pour voyager ?" = "Le pays d’où vous venez exige quel document sanitaire pour voyager ?"
+  , 
+  "109. Le pays où vous vous rendez exige quel document sanitaire pour voyager ?" = "Le pays où vous vous rendez exige quel document sanitaire pour voyager ?", 
+  "303. Avec quel document sanitaire voyagez -vous actuellement ?" ="Avec quel document sanitaire voyagez -vous actuellement ?",
+  "201. Antécédents médicaux /Asthme" ="Asthme",
+  "201. Antécédents médicaux /Diabète" = "Diabète",
+  "201. Antécédents médicaux /Hépatite virale" = "Hépatite virale",
+  "201. Antécédents médicaux /Hypertension artérielle" = "Hypertension artérielle",
+  "autreatcdstatut" = "Autres",
+  "401.1. Si oui quelles difficultés ?"="Si oui quelles difficultés ?",
+  "401. Avez- vous rencontré des difficultés depuis l'allègement des tests PCR obligatoires pour tous à l’AIGE ?"="Difficutés rencontrées",
+  "401.1. Si oui quelles difficultés ? /Temps d’attente trop long au niveau du contrôle sanitaire" = "Temps d’attente trop long au niveau du contrôle sanitaire",
+  "401.1. Si oui quelles difficultés ? /Enregistrement en ligne complexe" = "Enregistrement en ligne complexe",
+  "401.1. Si oui quelles difficultés ? /Trop de documents à remplir" = "Trop de documents à remplir",
+  "401.1. Si oui quelles difficultés ? /Tracasseries par les agents du service sanitaire à l’aéroport" = "Tracasseries par les agents du service sanitaire à l’aéroport",
+  "401.1. Si oui quelles difficultés ? /Test PCR demandé aux enfants/bébés non vaccinés" = "Test PCR demandé aux enfants/bébés non vaccinés",
+  "401.1. Si oui quelles difficultés ? /Autres (préciser)" = "Autres",
+  "Quel type de masque a-t-il porté ? /FFP2" = "FFP2",
+  "Quel type de masque a-t-il porté ? /N95" = "N95",
+  "Quel type de masque a-t-il porté ? /Masque chirurgical" = "Masque chirurgical",
+  "Quel type de masque a-t-il porté ? /Masque en tissu" = "Masque en tissu",
+  "404. Sur le plan sanitaire comment appréciez-vous les nouvelles conditions de contrôle sanitaire liées à la COVID-19 à l’AIGE ?" = "Appréciation des nouvelles conditions de contrôle sanitaire liées à la COVID-19 à l’AIGE ?",
+  positivite = "Nombre de positivité à la covid 19",
+  positivite_bis = "Nombre de positivité à la covid 19",
+  "202. Avez-vous été vacciné contre la Covid-19 ?" = "Avez-vous été vacciné contre la Covid-19 ?",
+  "Avez- vous été vacciné par :/Contrainte/obligation" = "Contrainte/obligation",
+  "Avez- vous été vacciné par :/Pour des raisons professionnelles" = "Pour des raisons professionnelles",
+  "Avez- vous été vacciné par :/Par nécessité de voyage" = "Par nécessité de voyage",
+  "Avez- vous été vacciné par :/Raisons médicales/prévention" = "Raisons médicales/prévention",
+  "Avez- vous été vacciné par :/Autres raisons" = "Autres raisons"
+)
+```
+
+
+#Tableau 1 Caractéristiques sociodémographiques 
+```{r tableau1}
+data_AIGE %>%
+  select("101. Âge", "agebis","102. Sexe","105. Niveau d’étude","103. Statut matrimonial")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c("101. Âge")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+
+#Tableau 2 Répartition des enquêtés selon les conditions de voyage (selon le sexe) 
+```{r tableau2}
+data_AIGE %>%
+  select("102. Sexe","104. A quelle catégorie de passager appartenez-vous","Pays de résidence","106. Lieu de provenance",
+         "107. Destination", "108. Le pays d’où vous venez exige quel document sanitaire pour voyager ?", 
+         "109. Le pays où vous vous rendez exige quel document sanitaire pour voyager ?", "303. Avec quel document sanitaire voyagez -vous actuellement ?") %>%
+  tbl_summary(
+    by = "102. Sexe",
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+      
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+
+
+#Tableau 3 ATCD médical et vaccinal 
+```{r tableau3a}
+data_AIGE %>%
+  select("102. Sexe","Avez-vous déjà été au moins une fois diagnostiqué positif pour la Covid-19 ?",
+         "positivite", positivite_bis,"202. Avez-vous été vacciné contre la Covid-19 ?", "Avez- vous des regrets ou craintes d’avoir été vacciné ?") %>%
+  tbl_summary(
+    by = "102. Sexe",
+    type = "positivite"~"continuous2",
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]")
+      
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+///
+#Tableau 3 Conditions de voyage
+```{r tableau3b}
+##Personne vaccinées data
+vaccin_oui <- subset(data_AIGE,satut_vac == 1)
+vaccin_oui %>%
+  select("102. Sexe","Avez- vous été vacciné par :/Contrainte/obligation", "Avez- vous été vacciné par :/Pour des raisons professionnelles","Avez- vous été vacciné par :/Par nécessité de voyage","Avez- vous été vacciné par :/Raisons médicales/prévention", "Avez- vous été vacciné par :/Autres raisons","Autres raisons de vaccination") %>%
+  tbl_summary(
+    by = "102. Sexe",
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+      
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+
+#Tableau 3 ATCD médical
+```{r tableau3c}
+antecedent <- subset(data_AIGE, aucunatcd == 0)
+antecedent %>%
+  select("102. Sexe","201. Antécédents médicaux /Asthme","201. Antécédents médicaux /Diabète","201. Antécédents médicaux /Hépatite virale","201. Antécédents médicaux /Hypertension artérielle","autreatcdstatut"
+) %>%
+  tbl_summary(
+    by = "102. Sexe",
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+      
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+
+
+#Creation de la base de donnees
+
+```{r}
+data_AIGEdose <- read_excel("Data/BDD_data_AIGE_AIGE.xlsx", 
+    sheet = "Feuil1")
+#calul de dose avec la 
+##Personne vaccinées data
+vaccin_oui <- subset(data_AIGE,satut_vac == 1)
+#data_AIGEdose$doses = c()
+doses = c()
+i = 1
+for(i in 1:length(vaccin_oui$`202.1. Si oui, combien de doses avez-vous déjà reçues ?`) )
+{
+  j  = 1
+  for(j in 1 :vaccin_oui$`202.1. Si oui, combien de doses avez-vous déjà reçues ?`[i])
+  {
+    doses <- append(doses,j)
+    #data_AIGEdose$doses <- append(data_AIGEdose$doses,j)
+  }
+  i = i + 1
+}
+doses <- as.data.frame(doses)
+#write_xlsx(doses, "C:/Users/geeka/Dropbox/CARESP$David/GONBO/Nouveau dossier/doses3.xlsx")
+```
+
+#tableau4	Estimation du nombre de doses reçues par antigènes chez les enquêtées
+```{r tableau4}
+
+ data_AIGE_type_vaccin %>%
+  select("Vaccin utilisé","doses","Autre vaccin reçu") %>%
+  tbl_summary(
+    by = "doses",
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+      
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+
+```{r}
+freq(vaccin_oui$`202.1. Si oui, combien de doses avez-vous déjà reçues ?`)
+freq(data_AIGE$'202. Avez-vous été vacciné contre la Covid-19 ?')
+```
+
+#tableau 5 perception et pratique des usagers vis-à-vis des mesures sanitaires prises par l'AIGE
+```{r tableau5}
+data_AIGE %>%
+  select("102. Sexe","401. Avez- vous rencontré des difficultés depuis l'allègement des tests PCR obligatoires pour tous à l’AIGE ?","401.1. Si oui quelles difficultés ? /Temps d’attente trop long au niveau du contrôle sanitaire", "401.1. Si oui quelles difficultés ? /Enregistrement en ligne complexe", "401.1. Si oui quelles difficultés ? /Trop de documents à remplir","401.1. Si oui quelles difficultés ? /Tracasseries par les agents du service sanitaire à l’aéroport",
+         "401.1. Si oui quelles difficultés ? /Test PCR demandé aux enfants/bébés non vaccinés","401.1. Si oui quelles difficultés ? /Autres (préciser)", "Autres difficultés PCR obligatoire","402. L’enquêté porte -t-il correctement un masque ?", "Quel type de masque a-t-il porté ? /FFP2", "Quel type de masque a-t-il porté ? /N95", "Quel type de masque a-t-il porté ? /Masque chirurgical", "Quel type de masque a-t-il porté ? /Masque en tissu","404. Sur le plan sanitaire comment appréciez-vous les nouvelles conditions de contrôle sanitaire liées à la COVID-19 à l’AIGE ?") %>%
+  tbl_summary(
+    by = "102. Sexe",
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+#Modele
+```{r}
+## Recodage de data_AIGE$age en data_AIGE$age_bis1
+data_AIGE$age_bis1 <- cut(data_AIGE$age,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(5, 40, 77)
+)
+## Recodage de data_AIGE$`202.1. Si oui, combien de doses avez-vous déjà reçues ?` en data_AIGE$doses
+data_AIGE$doses <- data_AIGE$`202.1. Si oui, combien de doses avez-vous déjà reçues ?` %>%
+  as.character() %>%
+  fct_recode(
+    "0" = "1",
+    "1" = "2",
+    "1" = "3",
+    "1" = "4"
+  ) %>%
+  fct_explicit_na("Non")
+## Recodage de data_AIGE$`106. Lieu de provenance`
+data_AIGE$`provenance` <- data_AIGE$`106. Lieu de provenance` %>%
+  fct_recode(
+    "Afrique" = "Afrique Centrale",
+    "Afrique" = "Afrique de l’Ouest",
+    "Afrique" = "Afrique du Nord",
+    "Afrique" = "Afrique du sud et de l’Est",
+    "Pas Afrique" = "Amérique",
+    "Pas Afrique" = "Asie",
+    "Pas Afrique" = "Europe"
+  ) %>%
+  fct_explicit_na("Pas Afrique")
+## Recodage de data_AIGE$provenance
+data_AIGE$provenance <- data_AIGE$provenance %>%
+  fct_recode(
+    "Afrique" = "Afrique de l’Ouest et du Nord"
+  )
+## Recodage de data_AIGE$`104. A quelle catégorie de passager appartenez-vous`
+data_AIGE$categorie_passager <- data_AIGE$`104. A quelle catégorie de passager appartenez-vous` %>%
+  fct_recode(
+    "Départ/Transit" = "Départ",
+    "Départ/Transit" = "Transit"
+  )%>%
+  fct_explicit_na("Départ/Transit")
+## Recodage de data_AIGE$`201. Antécédents médicaux` en data_AIGE$`ATCD médical`
+data_AIGE$`ATCD_medical` <- data_AIGE$`201. Antécédents médicaux` %>%
+  fct_recode(
+    "Oui" = "Asthme",
+    "Oui" = "Asthme   Diabète",
+    "Oui" = "Asthme   Hypertension artérielle",
+    "Non" = "Aucun",
+    "Oui" = "Aucun Asthme",
+    "Oui" = "Aucun Autres (préciser)",
+    "Oui" = "Autres (préciser)",
+    "Oui" = "Cardiopathie (maladie du cœur sans précision)",
+    "Oui" = "Diabète",
+    "Oui" = "Diabète Hypertension artérielle",
+    "Oui" = "Drépanocytose",
+    "Oui" = "Hépatite virale",
+    "Oui" = "Hypertension artérielle"
+  ) %>%
+  fct_explicit_na("Non")
+data_AIGE$Sexe <-data_AIGE$`102. Sexe`
+data_AIGE$Nivetud <-data_AIGE$`105. Niveau d’étude`
+data_AIGE$difficulte <-data_AIGE$`401. Avez- vous rencontré des difficultés depuis l'allègement des tests PCR obligatoires pour tous à l’AIGE ?`
+## Recodage de data_AIGE$Nivetud en data_AIGE$Nivetud_bis1
+data_AIGE$Nivetud_bis1 <- data_AIGE$Nivetud %>%
+  fct_recode(
+    "Non scolarisé/primaire/Secondaire" = "Non scolarisé/primaire",
+    "Non scolarisé/primaire/Secondaire" = "Secondaire"
+  )
+
+dep1 <- "satut_vac"
+dep2 <- "doses"
+vars <- c("age_bis1","Sexe","categorie_passager",
+          "provenance", "difficulte","ATCD_medical","Nivetud_bis1")
+tab <- finalfit(data_AIGE, dep1, vars)
+#knitr::kable(tab, row.names = FALSE)
+#model final----
+vars <- c("age_bis1","provenance", "difficulte","Nivetud_bis1")
+tab <- finalfit(data_AIGE, dep1, vars)
+#knitr::kable(tab, row.names = FALSE)
+
+
+vars <- c("age_bis1","Sexe","categorie_passager",
+          "provenance", "difficulte","ATCD_medical","Nivetud_bis1")
+tab <- finalfit(data_AIGE, dep2, vars)
+knitr::kable(tab, row.names = FALSE)
+#model final----
+vars <- c("age_bis1","Sexe","categorie_passager","provenance", "Nivetud_bis1")
+tab <- finalfit(data_AIGE, dep2, vars)
+#knitr::kable(tab, row.names = FALSE)
+```
+#Facteurs associés à la vaccination
+```{r, echo=FALSE}
+
+modele_univariable <- data_AIGE %>%
+  select(satut_vac,age_bis1,Sexe,categorie_passager,
+          provenance, difficulte,ATCD_medical,Nivetud_bis1) %>%
+  tbl_uvregression(
+    method = glm,
+    y = satut_vac,
+    method.args = list(family = binomial),
+    exponentiate = T,
+    add_estimate_to_reference_rows = T,
+    pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ","),
+    hide_n = T) %>%
+  add_global_p(keep = T)%>%
+  bold_p(t=0.05)%>%
+  bold_labels() 
+
+modele_multi_complet <- glm (satut_vac ~ age_bis1 + provenance + difficulte + Nivetud_bis1, 
+                             data = data_AIGE,
+                             family = binomial) %>%
+  tbl_regression(exponentiate = T,
+                 add_estimate_to_reference_rows = T,
+                 pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+  ) %>%
+  add_global_p(keep = T)%>%
+  bold_p(t=0.05)%>%
+  bold_labels()
+
+modele_multivariable <- glm (satut_vac ~ age_bis1 + 
+                               provenance, 
+                             data = data_AIGE,
+                             family = binomial) %>%
+  tbl_regression(exponentiate = T,
+                 add_estimate_to_reference_rows = T,
+                 pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+  ) %>%
+  add_global_p(keep = T)%>%
+  bold_p(t=0.05)%>%
+  bold_labels() 
+  
+
+modele_final <- tbl_merge(
+  list(modele_univariable,modele_multi_complet, modele_multivariable),
+  tab_spanner = c("*Modèle univariable*","*Modèle multivariable complet*","*Modèle multivariable*")
+)  
+
+modele_final
+```
+
+#Facteurs associés à la complétude de la vaccination
+```{r}
+
+modele_univariable <- data_AIGE %>%
+  select(doses,age_bis1,Sexe,categorie_passager,
+          provenance, difficulte,ATCD_medical,Nivetud_bis1) %>%
+  tbl_uvregression(
+    method = glm,
+    y = doses,
+    method.args = list(family = binomial),
+    exponentiate = T,
+    add_estimate_to_reference_rows = T,
+    pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ","),
+    hide_n = T) %>%
+  add_global_p(keep = T)%>%
+  bold_p(t=0.05)%>%
+  bold_labels() 
+
+modele_multi_complet <- glm (doses ~ age_bis1 + Sexe + provenance + categorie_passager + difficulte + Nivetud_bis1, 
+                             data = data_AIGE,
+                             family = binomial) %>%
+  tbl_regression(exponentiate = T,
+                 add_estimate_to_reference_rows = T,
+                 pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+  ) %>%
+  add_global_p(keep = T)%>%
+  bold_p(t=0.05)%>%
+  bold_labels()
+
+modele_multivariable <- glm (doses ~ age_bis1 + Sexe +
+                               provenance, 
+                             data = data_AIGE,
+                             family = binomial) %>%
+  tbl_regression(exponentiate = T,
+                 add_estimate_to_reference_rows = T,
+                 pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+  ) %>%
+  add_global_p(keep = T)%>%
+  bold_p(t=0.05)%>%
+  bold_labels() 
+  
+
+modele_final <- tbl_merge(
+  list(modele_univariable,modele_multi_complet, modele_multivariable),
+  tab_spanner = c("*Modèle univariable*","*Modèle multivariable complet*","*Modèle multivariable*")
+)  
+
+modele_final
+```
+
+
+```{r}
+data_AIGE %>%
+  select(`202.1. Si oui, combien de doses avez-vous déjà reçues ?`,`102. Sexe`) %>%
+  tbl_summary(
+    by = `102. Sexe`,
+    digits = all_categorical()~ c(0,1),
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+    ),
+    percent = "col"
+  ) %>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)
+```
+

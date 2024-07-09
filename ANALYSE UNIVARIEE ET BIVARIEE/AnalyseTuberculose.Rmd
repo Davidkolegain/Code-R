@@ -1,0 +1,1253 @@
+---
+title: "RAPPORT D'ANALYSE SUR LA TUBERCULOSE"
+author: "KYD"
+data: '2023-02-25'
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+#Importation de la base et bibliothèques
+```{r}
+#Chargement des donnees  et des packages
+library(tidyverse)
+library(labelled)
+library(questionr)
+library(gtsummary)
+library(readxl)
+library(GGally)
+library(finalfit)
+library("writexl")
+data <- read_excel("Data/m_data.xlsx")
+
+data <-  subset(data, m == 1)
+
+```
+# recodage
+```{r recodage}
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")
+## Recodage de data$`15. Maladies associées à la tuberculose/Diabète`
+data$`15. Maladies associées à la tuberculose/Diabète` <- data$`15. Maladies associées à la tuberculose/Diabète` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`15. Maladies associées à la tuberculose/Insuffisance rénale` en data$`15. Maladies associées à la tuberculose/Insuffisance rénale_rec`
+data$`15. Maladies associées à la tuberculose/Insuffisance rénale` <- data$`15. Maladies associées à la tuberculose/Insuffisance rénale` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )## Recodage de data$`15. Maladies associées à la tuberculose/Insuffisance hépatique` en data$`15. Maladies associées à la tuberculose/Insuffisance hépatique_rec`
+data$`15. Maladies associées à la tuberculose/Insuffisance hépatique` <- data$`15. Maladies associées à la tuberculose/Insuffisance hépatique` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0"
+  )
+## Recodage de data$`15. Maladies associées à la tuberculose/Cardiopathie`
+data$`15. Maladies associées à la tuberculose/Cardiopathie` <- data$`15. Maladies associées à la tuberculose/Cardiopathie` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0"
+  )
+## Recodage de data$`15. Maladies associées à la tuberculose/Trouble psychiatrique`
+data$`15. Maladies associées à la tuberculose/Trouble psychiatrique` <- data$`15. Maladies associées à la tuberculose/Trouble psychiatrique` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0"
+  )
+## Recodage de data$`15. Maladies associées à la tuberculose/Autres`
+data$`15. Maladies associées à la tuberculose/Autres` <- data$`15. Maladies associées à la tuberculose/Autres` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+
+## Recodage de data$`15.1.5 ARV :`
+data$`15.1.5 ARV :` <- data$`15.1.5 ARV :` %>%
+  fct_recode(
+    "Non" = "non",
+    "Oui" = "oui"
+  )
+## Recodage de data$`16. ATCD de tuberculose traitée :`
+data$`16. ATCD de tuberculose traitée :` <- data$`16. ATCD de tuberculose traitée :` %>%
+  fct_recode(
+    "Non" = "non",
+    "Oui" = "oui"
+  )
+## Recodage de data$`17. Notion de contage tuberculeux  :`
+data$`17. Notion de contage tuberculeux  :` <- data$`17. Notion de contage tuberculeux  :` %>%
+  fct_recode(
+    "Non" = "non",
+    "Oui" = "oui"
+  )
+## Recodage de data$`19. Enolisme :`
+data$`19. Enolisme :` <- data$`19. Enolisme :` %>%
+  fct_recode(
+    "Non" = "non",
+    "Oui" = "oui"
+  )
+## Recodage de data$`20. Prise médicamenteuse récente  :`
+data$`20. Prise médicamenteuse récente  :` <- data$`20. Prise médicamenteuse récente  :` %>%
+  fct_recode(
+    "Non" = "non",
+    "Oui" = "oui"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Fièvre`
+data$`23. Signes fonctionnels :/Fièvre` <- data$`23. Signes fonctionnels :/Fièvre` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Toux`
+data$`23. Signes fonctionnels :/Toux` <- data$`23. Signes fonctionnels :/Toux` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Dyspnée` en data$`23. Signes fonctionnels :/Dyspnée_rec`
+data$`23. Signes fonctionnels :/Dyspnée` <- data$`23. Signes fonctionnels :/Dyspnée` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Asthénie`
+data$`23. Signes fonctionnels :/Asthénie` <- data$`23. Signes fonctionnels :/Asthénie` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Anorexie`
+data$`23. Signes fonctionnels :/Anorexie` <- data$`23. Signes fonctionnels :/Anorexie` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Amaigrissement`
+data$`23. Signes fonctionnels :/Amaigrissement` <- data$`23. Signes fonctionnels :/Amaigrissement` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Aménorhée`
+data$`23. Signes fonctionnels :/Aménorhée` <- data$`23. Signes fonctionnels :/Aménorhée` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Hypersudation`
+data$`23. Signes fonctionnels :/Hypersudation` <- data$`23. Signes fonctionnels :/Hypersudation` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Expectoration`
+data$`23. Signes fonctionnels :/Expectoration` <- data$`23. Signes fonctionnels :/Expectoration` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Hémoptysie`
+data$`23. Signes fonctionnels :/Hémoptysie` <- data$`23. Signes fonctionnels :/Hémoptysie` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Douleurs thoraciques`
+data$`23. Signes fonctionnels :/Douleurs thoraciques` <- data$`23. Signes fonctionnels :/Douleurs thoraciques` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`23. Signes fonctionnels :/Hippocratisme digital`
+data$`23. Signes fonctionnels :/Hippocratisme digital` <- data$`23. Signes fonctionnels :/Hippocratisme digital` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`24.2 Pleuro- pulmonaire/Râles crépitants`
+data$`24.2 Pleuro- pulmonaire/Râles crépitants` <- data$`24.2 Pleuro- pulmonaire/Râles crépitants` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1",
+  )
+    ## Recodage de data$`26.1 EXAMEN/NFS`
+data$`26.1 EXAMEN/NFS` <- data$`26.1 EXAMEN/NFS` %>%
+  as.character() %>%
+  fct_recode(
+    "Oui" = "1"
+  )
+
+## Recodage de data$`26.1 EXAMEN/K+`
+data$`26.1 EXAMEN/K+` <- data$`26.1 EXAMEN/K+` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/ALAT`
+data$`26.1 EXAMEN/ALAT` <- data$`26.1 EXAMEN/ALAT` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/ASAT`
+data$`26.1 EXAMEN/ASAT` <- data$`26.1 EXAMEN/ASAT` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/TSH`
+data$`26.1 EXAMEN/TSH` <- data$`26.1 EXAMEN/TSH` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/Urée`
+data$`26.1 EXAMEN/Urée` <- data$`26.1 EXAMEN/Urée` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/Créatinine`
+data$`26.1 EXAMEN/Créatinine` <- data$`26.1 EXAMEN/Créatinine` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/Sérologie.Hiv`
+data$`26.1 EXAMEN/Sérologie.Hiv` <- data$`26.1 EXAMEN/Sérologie.Hiv` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/Genexpert des expectorations`
+data$`26.1 EXAMEN/Genexpert des expectorations` <- data$`26.1 EXAMEN/Genexpert des expectorations` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/LPA`
+data$`26.1 EXAMEN/LPA` <- data$`26.1 EXAMEN/LPA` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0"
+  )
+## Recodage de data$`26.1 EXAMEN/ECG`
+data$`26.1 EXAMEN/ECG` <- data$`26.1 EXAMEN/ECG` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/Glycémie`
+data$`26.1 EXAMEN/Glycémie` <- data$`26.1 EXAMEN/Glycémie` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+## Recodage de data$`26.1 EXAMEN/DST`
+data$`26.1 EXAMEN/DST` <- data$`26.1 EXAMEN/DST` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0"
+  )
+## Recodage de data$`27.1 Echographie abdominale :`
+data$`27.1 Echographie abdominale :` <- data$`27.1 Echographie abdominale :` %>%
+  fct_recode(
+    "Non" = "non"
+  )
+## Recodage de data$`30.3 TDM thoracique :`
+data$`30.3 TDM thoracique :` <- data$`30.3 TDM thoracique :` %>%
+  fct_recode(
+    "Non" = "non"
+  )
+## Recodage de data$`27.2 Echocardiographie :`
+data$`27.2 Echocardiographie :` <- data$`27.2 Echocardiographie :` %>%
+  fct_recode(
+    "Non" = "non",
+    "Oui" = "oui"
+  )
+
+## Recodage de data$age_bis en data$age_bis
+
+## Recodage de data$diag_mistrait en data$diag_mistrait
+data$diag_mistrait <- cut(data$diag_mistrait,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(4, 17, 22, 41.5, 400),
+  labels = c("4-16","17-21","22-42","43-400")
+)
+
+## Recodage de data$`5.ASAT M4`
+data$`5.ASAT M4` <- data$`5.ASAT M4` %>%
+  fct_recode(
+    "< 2N" = "1,03Normale",
+    "< 2N" = "1,1 normale",
+    "< 2N" = "1,1 Normale",
+    "< 2N" = "1,13 Normale",
+    "< 2N" = "1,16 Normale",
+    "< 2N" = "1,1N",
+    "< 2N" = "1,1Normale",
+    "< 2N" = "1,2 normale",
+    "< 2N" = "1,2 Normale",
+    "< 2N" = "1,22Normale",
+    "< 2N" = "1,25 normale",
+    "< 2N" = "1,26 normale",
+    "< 2N" = "1,28 normale",
+    "< 2N" = "1,2Normale",
+    "< 2N" = "1,3 Normale",
+    "< 2N" = "1,4 Normale",
+    "< 2N" = "1,4normale",
+    "< 2N" = "1,5 Normale",
+    "< 2N" = "1,7 normale",
+    "< 2N" = "1,7 Normale",
+    "< 2N" = "1,8 Normale",
+    "< 2N" = "1,99normale",
+    "< 2N" = "15,5 Normale",
+    "2N et plus" = "2 Normale",
+    "2N et plus" = "2,05 Normale",
+    "2N et plus" = "2,07 normale",
+    "2N et plus" = "2,2 normale",
+    "2N et plus" = "2,2 Normale",
+    "2N et plus" = "2,4 Normale",
+    "2N et plus" = "2,5 normale",
+    "2N et plus" = "2,6N",
+    "2N et plus" = "2,87 Normale",
+    "2N et plus" = "2,9Normale",
+    "2N et plus" = "3,5 normale",
+    "2N et plus" = "3,5 Normale",
+    "2N et plus" = "3,7 Normale",
+    "2N et plus" = "31 Normale",
+    "1N" = "Noramle",
+    "1N" = "Normale"
+  )
+
+## Recodage de data$`5.ALAT  M4`
+data$`5.ALAT  M4` <- data$`5.ALAT  M4` %>%
+  fct_recode(
+    "<2N" = "1,05 Normale",
+    "<2N" = "1,1 normale",
+    "<2N" = "1,1Normale",
+    "<2N" = "1,2 Normale",
+    "<2N" = "1,25 normale",
+    "<2N" = "1,25N",
+    "<2N" = "1,28 Normale",
+    "<2N" = "1,2Normale",
+    "<2N" = "1,3 normale",
+    "<2N" = "1,31 normale",
+    "<2N" = "1,35 Normale",
+    "<2N" = "1,42 normale",
+    "<2N" = "1,5 Normale",
+    "<2N" = "1,52 normale",
+    "<2N" = "1,6 normale",
+    "<2N" = "1,7 normale",
+    "<2N" = "1,75 Normale",
+    "<2N" = "1,78 Normale",
+    "<2N" = "1,93 normale",
+    "2N et plus" = "2 Normale",
+    "2N et plus" = "2,1 Normale",
+    "2N et plus" = "2,25 normale",
+    "2N et plus" = "2,27 Normale",
+    "2N et plus" = "2,2Normale",
+    "2N et plus" = "2,3 Normale",
+    "2N et plus" = "3 Normale",
+    "2N et plus" = "3,15Normale",
+    "2N et plus" = "4,1 Normale",
+    "2N et plus" = "4,2Normale",
+    "2N et plus" = "6,9Normale",
+    "N" = "Noramle",
+    "N" = "Normal dee",
+    "N" = "Normale"
+  )
+## Recodage de data$`5.UREE M4`
+data$`5.UREE M4` <- data$`5.UREE M4` %>%
+  fct_recode(
+    "<2N" = "1,01Normale",
+    "<2N" = "1,12 normale",
+    "<2N" = "1,1Normale",
+    "<2N" = "1,7Normale",
+    "2N et plus" = "2,4 normale",
+    "N" = "Noramle",
+    "N" = "Normale"
+  )
+## Recodage de data$`5.CREAT M4`
+data$`5.CREAT M4` <- data$`5.CREAT M4` %>%
+  fct_recode(
+    "<2N" = "1,08 normale",
+    "<2N" = "1,1 Normale",
+    "<2N" = "1,16Normale",
+    "<2N" = "1,2 Normale",
+    "<2N" = "1,4normale",
+    "<2N" = "1,5 Normale",
+    "<2N" = "1,6 normale",
+    "2N et plus" = "2,83 normale",
+    "N" = "Noramle",
+    "N" = "Normale"
+  )
+## Recodage de data$`Résultat ALAT`
+data$`Résultat ALAT` <- data$`Résultat ALAT` %>%
+  fct_recode(
+    "]1N-2N[" = "1,1 normale",
+    "]1N-2N[" = "1,2 normale",
+    "]1N-2N[" = "1,2 Normale",
+    "]1N-2N[" = "1,4 Normale",
+    "]1N-2N[" = "1,5 Normale",
+    "]1N-2N[" = "1,7 normale",
+    "2N et plus" = "2,75 normale",
+    "N" = "Normal",
+    "N" = "Normale"
+  ) %>%
+  fct_explicit_na("N")
+## Recodage de data$`Résultat ASAT`
+data$`Résultat ASAT` <- data$`Résultat ASAT` %>%
+  fct_recode(
+    "]1N-2N[" = "1,05Normale",
+    "]1N-2N[" = "1,09 Normale",
+    "]1N-2N[" = "1,16Normale",
+    "]1N-2N[" = "1,2 Normale",
+    "]1N-2N[" = "1,31 normale",
+    "]1N-2N[" = "1,43 normale",
+    "]1N-2N[" = "1,5 Normale",
+    "]1N-2N[" = "1,6 Normale",
+    "]1N-2N[" = "1,7 normale",
+    "]1N-2N[" = "1,8N",
+    "]1N-2N[" = "1,9Normale",
+    "2N et plus" = "2,28 normale",
+    "2N et plus" = "2,8 normale",
+    "2N et plus" = "3,5 Normale",
+    "N" = "Noramle",
+    "N" = "Normale"
+  ) %>%
+  fct_explicit_na("N")
+
+## Recodage de data$`Résultat Urée`
+data$`Résultat Urée` <- data$`Résultat Urée` %>%
+  fct_recode(
+    "]1N-2N[" = "1,1 Normale",
+    "]1N-2N[" = "1,2 Normale",
+    "]1N-2N[" = "1,9 normale",
+    "2N et plus" = "3 normale",
+    "2N et plus" = "7,1 Normale",
+    "N" = "Noramle",
+    "N" = "Normale"
+  ) %>%
+  fct_explicit_na("N")
+## Recodage de data$`Résultat Créatinine`
+data$`Résultat Créatinine` <- data$`Résultat Créatinine` %>%
+  fct_recode(
+    "2N et plus" = "2,1 normale",
+    "2N et plus" = "4,1 Normale",
+    "2N et plus" = "6,8 normale",
+    "N" = "Noramle",
+    "N" = "Normale"
+  ) %>%
+  fct_explicit_na("N")
+## Recodage de data$`Résultat glycémie`
+data$`Résultat glycémie` <- data$`Résultat glycémie` %>%
+  fct_explicit_na("Normale")
+
+
+## Recodage de data$age_bis en data$age_class
+data$age_class <- cut(data$age_bis,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 18, 25, 35, 45, 55, 65, 75),
+  labels = c("[0-18[","[18-25[","[25-35[","[35-45[","[45-55[","[55-65[","[65-75]")
+)
+data$age_bis <- cut(data$age_bis,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(8, 27, 33, 42, 75),
+  labels = c("8-26","27-32","33-41","42-75")
+)
+```
+#Etiquettes des variables
+```{r}
+data <- data %>%
+set_variable_labels(
+"2. Année d'admission :...6"="Année d'admission",
+"5. Age (ans) :" ="Age (ans)",
+age_bis = "Tranche d'âge (ans)",
+"6.Sexe :"="Sexe",
+"7.Profession :"="Profession",
+"8.Niveau d'instruction :"="Niveau d'instruction",
+"10. Situation matrimoniale :"="Situation matrimoniale",
+  "9.Lieu de résidence :"="Lieu de résidence",
+  "15. Maladies associées à la tuberculose/Diabète"="Diabète",
+  "15. Maladies associées à la tuberculose/Insuffisance rénale"="Insuffisance rénale",
+  "15. Maladies associées à la tuberculose/Insuffisance hépatique"="Insuffisance hépatique",
+  "15. Maladies associées à la tuberculose/Cardiopathie"="Cardiopathie",
+  "15. Maladies associées à la tuberculose/Trouble psychiatrique"="Trouble psychiatrique",
+  "15. Maladies associées à la tuberculose/Autres"="Autres",
+  "15.1 Statut sérologique VIH :"="Statut sérologique VIH",
+  "15.1.2 Type de virus :"="Type de virus",
+  "15.1.3 Taux de CD4 à l'initiation :"="Taux de CD4 à l'initiation",
+  "15.1.4 Taux de CD4 à 6 mois :"="Taux de CD4 à 6 mois",
+  "15.1.5 ARV :"="ARV",
+  "15.1.6 Autres pathologies associées"="Autres pathologies associées",
+  "16. ATCD de tuberculose traitée :"="ATCD de tuberculose traitée",
+"17. Notion de contage tuberculeux  :"="Notion de contage tuberculeux",
+"18. ATCD de tabagisme :"="ATCD de tabagisme",
+"18.1 Ancienneté du tabagisme (ans) :"="Ancienneté du tabagisme (ans)",
+"18.2 Nombre de paquet par année"="Nombre de paquet par année",
+"19. Enolisme :"=" Enolisme",
+  "20. Prise médicamenteuse récente  :"="Prise médicamenteuse récente",
+"20.1 Précisez le(s) médicament(s) prises :"="Le(s) médicament(s) prises",
+"21.Condition socioéconomique"="Condition socioéconomique",
+"22. PS (Indice de performance OMS)"="PS (Indice de performance OMS)",
+"23. Signes fonctionnels :/Fièvre"="Fièvre",
+"23. Signes fonctionnels :/Asthénie"="Asthénie",
+"23. Signes fonctionnels :/Anorexie"="Anorexie",
+"23. Signes fonctionnels :/Amaigrissement"="Amaigrissement",
+"23. Signes fonctionnels :/Aménorhée"="Aménorhée",
+"23. Signes fonctionnels :/Hypersudation"="Hypersudation",
+"23. Signes fonctionnels :/Toux"="Toux",
+"23. Signes fonctionnels :/Expectoration"="Expectoration",
+"23. Signes fonctionnels :/Dyspnée"="Dyspnée",
+"23. Signes fonctionnels :/Hémoptysie"="Hémoptysie",
+"23. Signes fonctionnels :/Douleurs thoraciques"="Douleurs thoraciques",
+"23. Signes fonctionnels :/Hippocratisme digital"="Hippocratisme digital",
+"23.2 Taille (cm)"="Taille (cm)",
+"23.1 Poids (en kg)"="Poids (en kg)",
+"23.3 Précisez autres :"="Autres",
+"24.1 Etat géneral"="Etat géneral",
+"24.2 Pleuro- pulmonaire/Signes de détresse respiratoire"="Signes de détresse respiratoire",
+"24.2.1 Syndrome d’épanchement pleural liquidien"="Syndrome d’épanchement pleural liquidien",
+"24.2 Pleuro- pulmonaire/Syndrome d’épanchement pleural gazeux"="Syndrome d’épanchement pleural gazeux",
+"24.2 Pleuro- pulmonaire/Syndrome d’épanchement pleural mixte"="Syndrome d’épanchement pleural mixte",
+"24.2 Pleuro- pulmonaire/Râles crépitants"="Râles crépitants",
+"24.2.4 Syndrome condensation pulmonaire"="Syndrome condensation pulmonaire",
+"24.4 Abdominal"="Abdominal",
+"24.5 Des aires ganglionnaires"="Des aires ganglionnaires",
+"24.6 Autres examen physique :"=" Autres",
+"24.3 Cardio- vasculaire"="Cardio- vasculaire",
+"25.1 Syndrome d’épanchement pleural mixte"="Syndrome d’épanchement pleural mixte",
+"25.2 Syndrome d’épanchement pleural liquidien"="Syndrome d’épanchement pleural liquidien",
+"25.3 Syndrome d’épanchement pleural gazeux"="Syndrome d’épanchement pleural gazeux",
+"25.4 Syndrome alvéolaire  :"="Syndrome alvéolaire",
+"25.5 Syndrome intertitiel"="Syndrome intertitiel",
+"25.5.1 Réticulaire :"="Réticulaire ",
+"25.5.2 Nodule :"="Nodule",
+"25.5.3 Milaire :"="Milaire",
+"25.6 Adénopathie médiastinal :"="Adénopathie médiastinal",
+"25.7 Caverne :"="Caverne",
+"25.8 Autres (à précisez)"=" Autres",
+"14. Délai entre le dépistage et mise sous traitement (jours)"="Délai entre le dépistage et mise sous traitement (jours)",
+"26.3 Culture :"="Culture",
+"26.2 Frottis:"="Frottis",
+"27.1 Echographie abdominale :"="Echographie abdominale",
+"27.2 Echocardiographie :"="Echocardiographie",
+"30.3 TDM thoracique :"="TDM thoracique",
+"32. Autres examens :"="Autres",
+"26.2 LPA:"="LPA",
+"26.2.1 Rifampicine :"="LPA/Rifampicine",
+"26.2.2 Isoniazide :"="LPA/Isoniazide",
+"26.2.3 FLURO :"="FLURO",
+"26.2.4 AMINOSIDES :"="AMINOSIDES",
+"26.5 DST :"="DST",
+"26.5.1 Rifampicine"="DST/Rifampicine",
+"26.1.4.2 Isoniazide"="DST/Isoniazide",
+"26.1.4.3 Pyrazinamide"="Pyrazinamide",
+"26.1.4.4 Ethambutol"="Ethambutol",
+"26.1.4.5 Streptonycine"="Streptonycine",
+"26.1 EXAMEN/NFS"="NFS",
+"26.1 EXAMEN/K+"="K+",
+"26.1 EXAMEN/ALAT"="ALAT",
+"26.1 EXAMEN/ASAT"="ASAT",
+"26.1 EXAMEN/TSH"="TSH",
+"26.1 EXAMEN/Urée"="Urée",
+"26.1 EXAMEN/Créatinine"="Créatinine",
+"26.1 EXAMEN/Sérologie.Hiv"="Sérologie.Hiv",
+"26.1 EXAMEN/Genexpert des expectorations"="Genexpert des expectorations",
+"26.1 EXAMEN/LPA"="LPA",
+"26.1 EXAMEN/Ag Hbs / Ac anti Hvc"="Ag Hbs/Ac anti Hvc",
+"26.1 EXAMEN/ECG"="ECG",
+"26.1 EXAMEN/DST"="DST",
+"26.1 EXAMEN/Frottis / culture"="Frottis / culture",
+"26.1 EXAMEN/Glycémie"="Glycémie",
+"ASAT/ASAT M4" = "ASAT",
+"5.ASAT M4" = "ASAT",
+"ALAT/ALAT  M4" = "ALAT", 
+"5.ALAT  M4" = "ALAT",
+"TSH/TSH M4" = "TSH",
+"5.TSH M4" = "TSH",
+"ECG/ECG M4" = "ECG",
+"5.ECG M4" = "ECG",	
+"5.DALT/AC M4" = "DALT/AC",	
+"NFS/NFS M4" = "NFS",
+"Normale NFS 4" = "Normale",	
+"Anémie NFS 4" = "Anémie",	
+"hypochromie isolée NFS 4" = "hypochromie isolée",	
+"Microcytose NFS 4" = "Microcytose",	
+"hyperleucocytose a polynucléaire neutrophile NFS 4" = "hyperleucocytose a polynucléaire neutrophile",	
+"lymphopénie NFS 4" = "lymphopénie",	
+"éosinophilie NFS 4" = "éosinophilie",
+"Autres NFS 4" = "Autres",
+"UREE/UREE M4" = "UREE",
+"5.UREE M4" = "UREE",	
+"CREAT/CREAT M4" = "CREAT",
+"5.CREAT M4" = "CREAT",
+"RADIO/RADIO M4" = "RADIO",
+"Anémie 0" = "Anémie",	 
+"thrombocytose 0" = "thrombocytose",	
+"Neutropénie 0" = "Neutropénie",	
+"Lymphopénie 0" = "Lymphopénie",	
+"éosinophilie 0" = "éosinophilie",	
+"Hyperéosinophilie 0" = "Hyperéosinophilie",	
+"Normale 0" = "Normale",	
+"hypochromie isolée 0" ="hypochromie isolée",	
+"Microcytose 0" = "Microcytose",	
+"hyperleucocytose à polynucléaire neutrophile 0" = "hyperleucocytose à polynucléaire neutrophile",	 
+"monocytose 0" = "monocytose",
+"25. RADIOGRAPHIE THORACIQUE/Syndrome d’épanchement pleural mixte" = "Syndrome d’épanchement pleural mixte",	
+"25. RADIOGRAPHIE THORACIQUE/Syndrome d’épanchement pleural liquidien" ="Syndrome d’épanchement pleural liquidien",	
+"25. RADIOGRAPHIE THORACIQUE/Syndrome d’épanchement pleural gazeux" = "Syndrome d’épanchement pleural gazeux",	
+"25. RADIOGRAPHIE THORACIQUE/Syndrome alvéolaire" = "Syndrome alvéolaire",	
+"25. RADIOGRAPHIE THORACIQUE/Syndrome intertitiel" = "Syndrome intertitiel",	
+"25. RADIOGRAPHIE THORACIQUE/Adénopathie médiastinal" = "Adénopathie médiastinal",	
+"25. RADIOGRAPHIE THORACIQUE/Caverne" = "Caverne"
+)
+
+
+                    
+```
+
+#I / Aspect sociodémographiques
+##1.	Taille de l’échantillon par année des cas de tuberculose MR
+```{r tableau1}
+
+data %>%
+  select("2. Année d'admission :...6","5. Age (ans) :","age_bis","6.Sexe :","7.Profession :","8.Niveau d'instruction :","10. Situation matrimoniale :","9.Lieu de résidence :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c("5. Age (ans) :")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##1.1	TRepartition de l'age en fonction du sexe----- New
+```{r tableau}
+
+data %>%
+  select(age_class,"6.Sexe :",)%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "6.Sexe :",
+    percent = "col",
+    #type = c("5. Age (ans) :")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()%>%
+  add_overall(last=T)
+
+```
+
+#II /  Aspect cliniques 
+##1.)Répartition des cas de tuberculose MR en fonction du type de tuberculose
+```{r tableau2a}
+ 
+#2.)Répartition des cas de tuberculose MR en fonction des antécédents
+data %>%
+  select("Type de tuberculose :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    #type = c("15.1.3 Taux de CD4 à l'initiation :","15.1.4 Taux de CD4 à 6 mois :")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##2.a)Répartition des cas de tuberculose MR en fonction des antécédents
+```{r tableau2b}
+data %>%
+  select("15. Maladies associées à la tuberculose/Diabète","15. Maladies associées à la tuberculose/Insuffisance rénale","15. Maladies associées à la tuberculose/Insuffisance hépatique","15. Maladies associées à la tuberculose/Cardiopathie","15. Maladies associées à la tuberculose/Trouble psychiatrique","15. Maladies associées à la tuberculose/Autres","15.1 Statut sérologique VIH :","15.1.2 Type de virus :","15.1.3 Taux de CD4 à l'initiation :","15.1.4 Taux de CD4 à 6 mois :","15.1.5 ARV :","15.1.6 Autres pathologies associées")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c("15.1.3 Taux de CD4 à l'initiation :","15.1.4 Taux de CD4 à 6 mois :")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##2.b)Répartition des cas de tuberculose MR en fonction des antécédents**
+```{r tableau2c}
+data %>%
+  select("16. ATCD de tuberculose traitée :","17. Notion de contage tuberculeux  :","18. ATCD de tabagisme :","18.1 Ancienneté du tabagisme (ans) :","18.2 Nombre de paquet par année","19. Enolisme :","20. Prise médicamenteuse récente  :","20.1 Précisez le(s) médicament(s) prises :","21.Condition socioéconomique","22. PS (Indice de performance OMS)")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    #type = c("15.1.3 Taux de CD4 à l'initiation :","15.1.4 Taux de CD4 à 6 mois :")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##3.)Répartition des cas de tuberculose MR en fonction des signes fonctionnels et cliniques 
+```{r tableau3}
+
+data %>%
+  select("23. Signes fonctionnels :/Fièvre","23. Signes fonctionnels :/Asthénie","23. Signes fonctionnels :/Anorexie","23. Signes fonctionnels :/Amaigrissement","23. Signes fonctionnels :/Aménorhée","23. Signes fonctionnels :/Hypersudation","23. Signes fonctionnels :/Toux","23. Signes fonctionnels :/Expectoration","23. Signes fonctionnels :/Dyspnée","23. Signes fonctionnels :/Hémoptysie","23. Signes fonctionnels :/Douleurs thoraciques","23. Signes fonctionnels :/Hippocratisme digital","23.2 Taille (cm)","23.1 Poids (en kg)","23.3 Précisez autres :","24.1 Etat géneral","24.2 Pleuro- pulmonaire/Signes de détresse respiratoire","24.2.1 Syndrome d’épanchement pleural liquidien","24.2 Pleuro- pulmonaire/Syndrome d’épanchement pleural gazeux","24.2 Pleuro- pulmonaire/Syndrome d’épanchement pleural mixte","24.3 Cardio- vasculaire","24.2 Pleuro- pulmonaire/Râles crépitants","24.2.4 Syndrome condensation pulmonaire","24.4 Abdominal","24.5 Des aires ganglionnaires","24.6 Autres examen physique :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c("23.2 Taille (cm)","23.1 Poids (en kg)")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+##4.	Bilan pré-thérapeutique : examens réalisés, pathologies associées 
+```{r tableau4}
+
+data %>%
+  select("26.1 EXAMEN/NFS","26.1 EXAMEN/K+","26.1 EXAMEN/ALAT","26.1 EXAMEN/ASAT","26.1 EXAMEN/TSH","26.1 EXAMEN/Urée","26.1 EXAMEN/Créatinine","26.1 EXAMEN/Sérologie.Hiv","26.1 EXAMEN/Genexpert des expectorations","26.1 EXAMEN/LPA","26.1 EXAMEN/Ag Hbs / Ac anti Hvc","26.1 EXAMEN/ECG","26.1 EXAMEN/DST","26.1 EXAMEN/Frottis / culture","26.1 EXAMEN/Glycémie" ,"27.1 Echographie abdominale :","27.2 Echocardiographie :","30.3 TDM thoracique :","32. Autres examens :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+#4.1) Bilan Biologique --- Nouveau
+
+
+
+```{r }
+
+data %>%
+  select("Anémie 0",	 "thrombocytose 0",	"Neutropénie 0",	"Lymphopénie 0",	"éosinophilie 0",	"Hyperéosinophilie 0",	"Normale 0",	"hypochromie isolée 0",	"Microcytose 0",	"hyperleucocytose à polynucléaire neutrophile 0",	 "monocytose 0")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+##4.2 ECG ----- Nouveau
+```{r }
+
+data %>%
+  select("Arythmie",	"Déviation axiale",	"ECG Normale",	"Tachycardie",	"Hypertrophie",	"Ischémie")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+
+
+##4.3 ASAT, ALAT, NFS, ECG, Uree, CREAT, Gly ----- Nouveau
+```{r }
+
+data %>%
+  select("Résultat ALAT",	"Résultat ASAT",	"Résultat Urée",	"Résultat Créatinine")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+
+
+##5.	Anomalies radiographiques   
+```{r tableau5a}
+
+data %>%
+  select("25.1 Syndrome d’épanchement pleural mixte","25.2 Syndrome d’épanchement pleural liquidien","25.3 Syndrome d’épanchement pleural gazeux","25.4 Syndrome alvéolaire  :","25.5.1 Réticulaire :","25.5.2 Nodule :","25.5.3 Milaire :","25.6 Adénopathie médiastinal :","25.7 Caverne :","25.8 Autres (à précisez)")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##pleural --New
+
+##----New
+```{r tableau5b}
+
+data %>%
+  select("pleural liquidien",	"pleural mixte",	"alvéolaire",	"Caverne", "Nodule",	"Miliaire",	"Réticulaire",	"Alvéolaire Caverne",	"Alvéolaire Réticulaire Nodule", 	"Alvéolaire Réticulaire Nodule Caverne",	"Réticulaire Nodule",	"Réticulaire Nodule Caverne",	"Réticulaire Miliaire","pleural liquidien alvéolaire",	"pleural liquidien Caverne",	"pleural liquidien Nodule",	"pleural liquidien Réticulaire")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+# ---NEW syndrome intersitiel
+
+```{r}
+data %>%
+  select("25.5 Syndrome intertitiel/Réticulaire","25.5 Syndrome intertitiel/Miliaire","25. RADIOGRAPHIE THORACIQUE/Caverne","25.5 Syndrome intertitiel/Nodule","25.1 Syndrome d’épanchement pleural mixte","25.2 Syndrome d’épanchement pleural liquidien",	"25.5.1 Réticulaire :",	"25.5.2 Nodule :",	"25.5.3 Milaire :","25.7 Caverne :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+#25.5 Syndrome intertitiel/Nodule
+```
+#---syundrome intersitiel/Réticulaire
+```{r}
+data %>%
+  select("25.5 Syndrome intertitiel/Réticulaire","25.5.1 Réticulaire :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "25.5.1 Réticulaire :",
+    percent = "row",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+#---syundrome intersitiel/Nodule
+```{r}
+data %>%
+  select("25.5 Syndrome intertitiel/Nodule","25.5.2 Nodule :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "25.5.2 Nodule :",
+    percent = "row",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+#---syundrome intersitiel/Miliare
+```{r}
+data %>%
+  select("25.5 Syndrome intertitiel/Miliaire","25.5.3 Milaire :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "25.5.3 Milaire :",
+    percent = "row",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+#---syndrome intersitiel/caverne
+```{r}
+data %>%
+  select("25. RADIOGRAPHIE THORACIQUE/Caverne","25.7 Caverne :")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "25.7 Caverne :",
+    percent = "row",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+
+##6.	Résistances aux antituberculeux : 1ère ligne(DST)  et 2ème ligne (LPA)
+```{r}
+
+data %>%
+  select("26.2.1 Rifampicine :","26.2.2 Isoniazide :","26.2.3 FLURO :","26.2.4 AMINOSIDES :","26.5.1 Rifampicine","26.1.4.2 Isoniazide","26.1.4.3 Pyrazinamide","26.1.4.4 Ethambutol","26.1.4.5 Streptonycine",)%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+
+
+#III /Aspect thérapeutique 
+##1&2 Proportion de patients traités
+```{r tableau6a}
+data %>%
+  select("TRAITEMENT")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    #type = c("14. Délai entre le dépistage et mise sous traitement (jours)")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+##3.	Schéma thérapeutique 
+```{r tableau6b}
+data <- subset(data, patient_traite == 1)
+data %>%
+  select("14. Délai entre le dépistage et mise sous traitement (jours)")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c("14. Délai entre le dépistage et mise sous traitement (jours)")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+```
+#IV /  Suivi 
+##1.	frottis et cultures
+```{r}
+
+data %>%
+  select("Frottis/frottis M0",	"Frottis/frottis M1",	"Frottis/frottis M2",	"Frottis/frottis M3",	"Frottis/frottis M4",	"Frottis/frottis M5",	"Frottis/frottis M6",	"Frottis/frottis M7",	"Frottis/frottis M8",	"Frottis/frottis M9",	"Frottis/frottis M12","Culture/culture M0",	"Culture/culture M1",	"Culture/culture M2",	"Culture/culture M3",	"Culture/culture M4",	"Culture/culture M5",	"Culture/culture M6",	"Culture/culture M7",	"Culture/culture M8",	"Culture/culture M9",	"Culture/culture M12",	"1. culture M0",	"2. culture M1",	"3. culture M2",	"4. culture M3",	"5. culture M4",	"6. culture M5",	"7. culture M6",	"8. culture M7",	"9. culture M8",	"10. culture M9","11. culture M12","81.1 Frottis M0",	"81.2 Frottis M1",	"81.3 Frottis M2",	"81.4 Frottis M3",	'81.5 Frottis M4',	"81.6 Frottis M5",	"81.7 Frottis M6",	"81.8 Frottis M7",	"81.9 Frottis M8",	"81.10 Frottis M9",)%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##2.	Effets secondaire cliniques et délai d’apparition des effets secondaires-- New 
+
+
+
+
+```{r}
+data %>%
+  select("Douleurs osteo articulaire M1","Epigastralgie M1",	"Neuropathie péripheriques M1",	"Acouphène M1",	"Hypoacousie_M1",	"Troubles psychologiques M1",	"Hemoglobunurie M1",	"Douleurs osteo articulaire M4",	"Epigastralgie M4",	"Neuropathie péripheriques M4",	"Acouphène M4",	"Hypoacousie M4",	"Troubles psychologiques M4",	"Hemoglobunurie M4",	"Douleurs osteo articulaire M3",	"Epigastralgie M3",	"Neuropathie péripheriques M3",	"Acouphène M3",	"Hypoacousie M3",	"Troubles psychologiques M3",	"Hemoglobunurie M3",	"Douleurs osteo articulaire M2",	"Epigastralgie M2",	"Neuropathie péripheriques M2"	,"Acouphène M2",	"Hypoacousie M2",	"Troubles psychologiques M2",	"Hemoglobunurie M2")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##2.1 Effets secondaires M1
+```{r}
+data %>%
+  select("Hypoacousie M1",	"Douleurs articulaires M1",	"myalgie M1",	"Nausée M1","Arthralgie M1",	"Asthénie M1",	"vertiges M1",	"vomissement M1",	"Douleurs abdominales M1",	"Céphalées M1",	"Autres M1","Precisez autres M1")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+##2.2 Effets secondaires M2
+```{r}
+data %>%
+  select("Hypoacousie effet second M2",	"Douleurs osteo-articulaire effet second M2",	"douleurs abdominales effet second M2",	"Céphalée effet second M2",	"douleurs articulaires effet second M2",	"Asthénie effet second M2",	"Vomissement effet second M2",	"Nausée effet second M2",	"Acouphènes effet second M2",	"Vertiges effet second M2",	"Autres effet second M2")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+
+
+##2.3 Effets secondaires M3
+```{r}
+data %>%
+  select("Anorexie effet secondaire M3",	"Acouphènes effet secondaire M3",	"hypoacousie effet secondaire M3",	"vertiges effet secondaire M3",	"Céphalée effet secondaire M3",	"douleurs articulaires effet secondaire M3",	"nausée effet secondaire M3",	"Douleurs ostéo-articulaire effet secondaire M3",	"Asthénie effet secondaire M3","neuropathie périphérique effet secondaire M3",	"Vomissements effet secondaire M3","Autres effet secondaire M3")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+
+##2.4 Effets secondaires M4
+```{r}
+data %>%
+  select("Hypoacousie effet secondaire M4",	"Asthénie effet secondaire M4",	"Acouphènes effet secondaire M4",	"Cephalée effet secondaire M4",	"douleurs articulaires effet secondaire M4",	"vertiges effet secondaire M4",	"bilatérale effet secondaire M4",	"Neuropathie périphériques effet secondaire M4",	"Autres effet secondaire M4")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##2.4 Effets secondaires M5 et M6
+```{r}
+data %>%
+  select("Effets secondaires M5",	"Effets secondaires M6")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##3.Effets secondaire biologiques 
+
+```{r}
+
+data %>%
+  select("ASAT/ASAT M4","5.ASAT M4","ALAT/ALAT  M4", "5.ALAT  M4","TSH/TSH M4","5.TSH M4","ECG/ECG M4","5.ECG M4",	"5.DALT/AC M4",	"NFS/NFS M4","Normale NFS 4",	"Anémie NFS 4",	"hypochromie isolée NFS 4",	"Microcytose NFS 4",	"hyperleucocytose a polynucléaire neutrophile NFS 4",	"lymphopénie NFS 4",	"éosinophilie NFS 4","Autres NFS 4","UREE/UREE M4","5.UREE M4",	"CREAT/CREAT M4","5.CREAT M4","RADIO/RADIO M4","5.RADIO M4")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##3.1Radio
+```{r}
+
+data %>%
+  select("Infiltrat Radio M4",	"actélectasie Radio M4",	"bulle Radio M4",	"caverne Radio M4",	"Nodule Radio M4",	"Alvéolaire Radio M4",	"Fibrose Radio M4",	"Hydropneumothorax Radio M4",	"Pleurésie Radio M4")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##3.0 Radio etat
+```{r}
+
+data %>%
+  select("bilateral M4 new","lesions gauche Radio M4 new","lesions droite Radio M4 new")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    #by = "lesions gauche Radio M4",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##3.2 Radio
+```{r}
+
+data %>%
+  select("Diffuse Radio M4",	"basale Radio M4",	"Axillaire Radio M4",	"Rétractile Radio M4",	"Apicale Radio M4",	"hile Radio M4",	"lesions gauche Radio M4 new")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "lesions gauche Radio M4 new",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+##3.3 Radio ___1
+```{r}
+
+data %>%
+  select("Diffuse Radio M4",	"basale Radio M4",	"Axillaire Radio M4",	"Rétractile Radio M4",	"Apicale Radio M4",	"hile Radio M4",	"lesions droite Radio M4 new")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "lesions droite Radio M4 new",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##3.3 Radio ___2
+```{r}
+
+data %>%
+  select("Diffuse Radio M4",	"basale Radio M4",	"Axillaire Radio M4",	"Rétractile Radio M4",	"Apicale Radio M4",	"hile Radio M4",	"bilateral M4 new")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    by = "bilateral M4 new",
+    #type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+
+
+##4.Resultat du traitement/Evolution
+```{r}
+data %>%
+  select("EVOLUTION")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```
+#Type de lesions
+```{r}
+TBm <- read_excel("Data/m_modele_data.xlsx")
+TBm <- as.data.frame(TBm)
+TBm %>%
+  select("TypedeTB","autre_typedeTB")%>%
+  tbl_summary(
+    digits = all_categorical()~ c(0,1),
+    type = c()~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  bold_labels()
+
+```

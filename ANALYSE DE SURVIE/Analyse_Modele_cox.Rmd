@@ -1,0 +1,1005 @@
+---
+title: Études des facteurs pronostiques à un an des patients insuffisants cardiaques
+  suivis aux services de cardiologie du chu KARA et de LOME
+author: "KYD"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+#Importation de la base et bibliothèques
+```{r}
+#Chargement des donnees  et des packages
+library(tidyverse)
+library(labelled)
+library(questionr)
+library(gtsummary)
+library(readxl)
+library(GGally)
+library(finalfit)
+library("writexl")
+library(survival)
+library(survminer)
+library(lubridate)
+
+data_s <- read_excel("Data/new_data_s_250820223.xlsx")
+
+data_s <- as.data.frame(data_s)
+
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")
+
+```
+
+# recodage
+```{r}
+
+## Recodage de data_s$Age en data_s$age_bis
+data_s$age_bis <- cut(data_s$Age,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(18, 40, 60, 80,100),
+  labels = c("18-39","40-59","60-79","80+")
+)
+
+## Recodage de data_s$FC en data_s$FC_bis
+data_s$FC_bis <- cut(data_s$FC,
+  include.lowest = TRUE,
+  right = FALSE, 
+  dig.lab = 4,
+  breaks = c(58, 80, 101, 200),
+  labels = c("Normal","Accélérée","Tachycarde")
+) %>%
+  fct_na_value_to_level("Accélérée")
+## Recodage de data_s$SOP2 en data_s$SPO2
+data_s$SPO2 <- cut(data_s$SOP2,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 90, 100),
+  labels = c("Désaturation", "Saturation normale")
+) %>%
+  fct_na_value_to_level("Saturation normale")
+data_s$Dyspne_d_effort = data_s$"Motifs de consultation/Dyspnée d'effort"
+## Recodage de data_s$IMC en data_s$IMC_bis
+data_s$IMC_bis <- cut(data_s$IMC,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(18, 25, 30, 35, 40, 100),
+  labels = c("Normal","Surpoids","Obésité classe I","Obésité classe II (sévère)","Obésité classe III (massive)")
+) %>%
+  fct_na_value_to_level("Normal")
+## Recodage de data_s$TA en data_s$TA_bis_1
+data_s$TA_class <- cut(data_s$TA,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 140, 160, 180, 400),
+  labels = c("Normale","grade I","Grade II", "Grade III")
+)%>%fct_na_value_to_level("Normale")
+## Recodage de data_s$TA_class en data_s$TA_bis
+data_s$TA_bis <- data_s$TA_class %>%
+  fct_recode(
+    "Oui" = "Normale",
+    "Non" = "grade I",
+    "Non" = "Grade II",
+    "Non" = "Grade III"
+  )
+## Recodage de data_s$ESA
+data_s$ESA <- data_s$ESA %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$RSR
+data_s$RSR <- data_s$RSR %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$"ACFA"
+data_s$`ACFA` <- data_s$`ACFA` %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$BBG
+data_s$BBG <- data_s$BBG %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$ESV
+data_s$ESV <- data_s$ESV %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$ESV
+data_s$TV <- data_s$TV %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$ESV
+data_s$TV <- data_s$TV %>%
+  fct_na_value_to_level("Non")
+## Recodage de data_s$`SCAT ST +`
+data_s$`SCAT ST +` <- data_s$`SCAT ST +` %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$`SCAT ST -`
+data_s$`SCAT ST -` <- data_s$`SCAT ST +` %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$`Dysfonction du ventricule droit`
+data_s$`Dysfonction du ventricule droit` <- data_s$`Dysfonction du ventricule droit` %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$`Akinésie segmentaire`
+data_s$`Akinésie segmentaire` <- data_s$`Akinésie segmentaire` %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$PRVG
+data_s$PRVG <- data_s$PRVG %>%
+  fct_na_value_to_level("Normale")
+
+## Recodage de data_s$`Atteintes vavulaires`
+data_s$`Atteintes vavulaires` <- data_s$`Atteintes vavulaires` %>%
+  fct_na_value_to_level("Non")
+
+## Recodage de data_s$`Débit Cardiaque (IC)`
+data_s$`Débit Cardiaque (IC)` <- data_s$`Débit Cardiaque (IC)` %>%
+  fct_na_value_to_level("Normal")
+## Recodage de data_s[,"Hémoglobine en g/dl"] en data_s$Hémoglobine
+data_s$Hémoglobine <- cut(data_s[, "Hémoglobine en g/dl"],
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 7, 10, 11, 15),
+  labels = c("Anémie sévère","Anémie modérée","Anémie légère","Normale")
+)%>%
+  fct_na_value_to_level("Normale")
+
+## Recodage de data_s[,"Clairance de la créatinine"] en data_s[,"Clairance de la créatinine"]
+data_s[, "Clairance de la créatinine"] <- cut(data_s[, "Clairance de la créatinine"],
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 30, 60, 80, 100),
+  labels = c("Insuffisance rénale sévère","Insuffisance rénale modérée ","Insuffisance rénale légère","Normale")
+)
+
+## Recodage de data_s$Hyponatremie_1 en data_s$Natrémie
+data_s$Natrémie <- cut(data_s$Hyponatremie_1,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 125, 130, 135, 200),
+  labels = c("Profonde","Modérée","Légère","Normale")
+)
+
+
+## Recodage de data_s$Hypokaliémie en data_s$Kaliémie
+data_s$Kaliémie <- cut(data_s$Hypokaliémie,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 2.5, 3, 3.5, 10),
+  labels = c("Hypokaliémie moyenne", "Hypokaliéme sévère", "Hypokaliémie modérée", "Normale")
+)%>%
+  fct_na_value_to_level("Normale")
+## Recodage de data_s[,"Durée d'hospitalisation(en jours)"] en data_s[,"Durée d'hospitalisation(en jours)"]
+data_s[, "Durée d'hospitalisation(en jours)"] <- cut(data_s[, "Durée d'hospitalisation(en jours)"],
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 11, 20, 30, 200),
+  labels = c("0-10","11-19", "20-29", "30+")
+)
+## Recodage de data_s[,"Nombre d'hospitalisation"] en data_s[,"Nombre d'hospitalisation"]
+# data_s[, "Nombre d'hospitalisation"] <- cut(data_s[, "Nombre d'hospitalisation"],
+#   include.lowest = TRUE,
+#   right = FALSE,
+#   dig.lab = 4,
+#   breaks = c(0, 2, 3, 4, 11),
+#   labels = c("1","2","3","4+")
+# )
+## Recodage de data_s[,"Délai du décès par rapport à la première admission(en mois)"] en data_s$Duree_diag_deces
+# data_s$Duree_diag_deces <- cut(data_s[, "Délai du décès par rapport à la première admission(en mois)"],
+#   include.lowest = TRUE,
+#   right = FALSE,
+#   dig.lab = 4,
+#   breaks = c(0, 7, 13, 25, 50),
+#   labels = c("0-6","7-12","13-24","25+")
+# )
+## Cutting data_s$`FEVG:` into data_s$`FEVG<=30`
+data_s$`FEVG<=30` <- cut(data_s$`FEVG:`,
+  include.lowest = TRUE,
+  right = TRUE,
+  dig.lab = 4,
+  breaks = c(0, 30, 100),
+  labels = c("<=30",">30")
+)
+## Cutting data_s$`FEVG:` into data_s$`FEVG>=40`
+data_s$`FEVG>=40` <- cut(data_s$`FEVG:`,
+  include.lowest = TRUE,
+  right = TRUE,
+  dig.lab = 4,
+  breaks = c(0, 40, 100),
+  labels = c("<=40","40+")
+)
+## Recoding data_s$`Patients selon la survie` into data_s$patient_deces
+data_s$patient_deces <- data_s$`Patients selon la survie` %>%
+  fct_recode(
+    "1" = "Patient décédé",
+    "2" = "Patient perdu de vue",
+    "0" = "Patient survivant"
+  )
+data_s <- data_s%>%
+  mutate(
+    Duree_diag_deces = time_length(interval(Date_d_hospitalisation,Date_de_deces), unit = "month"),
+    Duree_diag_perdu_vue = time_length(interval(Date_d_hospitalisation,Date_de_perdu_de_vue), unit = "month"),
+    Duree_diag_point = time_length(interval(Date_d_hospitalisation,date(ymd_hms("2023-06-30 23:12:13"))), unit = "month")
+  
+    )
+data_s$Duree_diag_deces <- round(data_s$Duree_diag_deces)
+data_s$Duree_diag_perdu_vue <- round(data_s$Duree_diag_perdu_vue)
+data_s$Duree_diag_point <- round(data_s$Duree_diag_point)
+## Recoding data_s$`Niveau socioéconomique`
+data_s$`Niveau socioéconomique` <- data_s$`Niveau socioéconomique` %>%
+  fct_recode(
+    "Bas" = "bas"
+  )
+# Recodage de data_s[,"Délai du décès par rapport à la première admission(en mois)"] en data_s$Duree_diag_deces
+data_s$Duree_diag_deces_1 <- cut(data_s[, "Duree_diag_deces"],
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 7, 13, 25, 50),
+  labels = c("0-6","7-12","13-24","25+")
+)
+```
+#Etiquette de variables
+```{r}
+data_s <- data_s%>%
+  set_variable_labels(
+    'Age' = "Age (ans)",
+     age_bis = "Tranche d'âge (ans)",
+     "Année :" = "Année",
+     "Antécédents Majeurs :HTA" = "HTA",
+     "Antécédents Majeurs :Diabète" = "Diabète",
+     "Antécédents Majeurs :Tabagisme" = "Tabagisme",
+     "Antécédents Majeurs :Dyslipidémie" = "Dyslipidémie",
+     "Antécédents Mineurs :Obésité" = "Obésité",
+     "Antécédents Mineurs :Sédentaristé" = "Sédentaristé",
+     "Antécédents Mineurs :SAS" = "SAS",
+     "Antécédents Mineurs :Excès d'alcool" = "Excès d'alcool",
+     "Antécédents Mineurs :stress" = "stress",
+     "Antécédents Mineurs :Ins Rénal" = "Ins Rénal",
+     "Antécédents Mineurs :VIH/SIDA" = "VIH SIDA",
+     "Antécédents Mineurs :Autres" = "Autres",
+     "Antécédents Majeurs :Autres" = "Autres",
+     "Autres antécedents majeurs :" = "Autres",
+     "Autres antécédent mineurs :" = "Autres",
+     "Motifs de consultation/Douleur thoracique" ="Douleur thoracique" ,
+     "Motifs de consultation/Dyspnée d'effort" = "Dyspnée d'effort",
+     "Motifs de consultation/Dyspnée paroxystique" = "Dyspnée paroxystique"  ,
+     "Motifs de consultation/OMI" = "OMI",
+     "Motifs de consultation/Asthénie" = "Asthénie",
+     "Motifs de consultation/Toux de décubitus" = "Toux de décubitus",
+     "Motifs de consultation/Orthopnée" = "Orthopnée",
+     "Motifs de consultation/Palpitation" = "Palpitation",
+     "TA_bis" = "TA normale",
+     "TA_class" = "TA",
+     "FC_bis" ="FC",
+     "SPO2" = "SPO2",
+     "IMC_bis" = "IMC",
+     #"Examen de l'appareil cardio vasculaire et pulmonaire/Dyspnée d'effort" = "Dyspnée d'effort",
+     #"Examen de l'appareil cardio vasculaire et pulmonaire/Paroxystique" = "Paroxystique",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Tachycardie" = "Tachycardie",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Galop gauche" = "Galop gauche",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Galop droit" = "Galop droit",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/OMI" = "OMI",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/HMG" = "HMG",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/TSVJ" = "TSVJ",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/RHJ" = "RHJ",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Orthopnée" = "Orthopnée",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Toux de decubitus" = "Toux de decubitus",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Douleur thoracique" = "Douleur thoracique",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Palpitation" = "Palpitation",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Insuffisance cardiaque gauche" ="Insuffisance cardiaque gauche",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Insuffisance cardiaque droite" = "Insuffisance cardiaque droite",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Insuffisance cardiaque globale" = "Insuffisance cardiaque globale",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Condensation pulmonaire gauche" = "Condensation pulmonaire gauche",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Condensation pulmonaire droit" = "Condensation pulmonaire droit",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Condensation pulmonaire bilatérale" = "Condensation pulmonaire bilatérale",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Ascite" = "Ascite",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Etat d'anasarque" = "Etat d'anasarque",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Etat de choc" = "Etat de choc",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/CDP latero dévié" = "CDP latero dévié",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Souffle d'IM" = "Souffle d'IM",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Râle crépitants" = "Râle crépitants",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Syndrome d'épanchement pleural" = "Syndrome d'épanchement pleural",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Syndrome de condensation pulmonaire" = "Syndrome de condensation pulmonaire",
+     "Examen de l'appareil cardio vasculaire et pulmonaire/Trouble de décomposition" = "Trouble de décomposition",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /CMD" ="CMD",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /CMH" = "CMH",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /CMR" = "CMR",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /CMPP" = "CMPP",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /Cardiothyréose" = "Cardiothyréose",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie hypertensive" = "Cardiopathie hypertensive",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie ischémique" = "Cardiopathie ischémique",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie rythmique" = "Cardiopathie rythmique",
+     "IV. DIAGNOSTIC ETIOLOGIQUE /Valvulopathies" = "Valvulopathies",
+     "V TRAITEMENT /Furosémide" = "Furosémide",
+     "V TRAITEMENT /Aldactone" = "Aldactone",
+     "V TRAITEMENT /IEC/ARAII"	= "IEC/ARA II",
+     "V TRAITEMENT /Bêtabloquant" = "Beta bloquant",
+     "V TRAITEMENT /Digoxine" = "Digoxine",
+     "V TRAITEMENT /Empagliflozine" = "Empagliflozine"	,
+     "V TRAITEMENT /Entresto" = "Entresto",
+     "V TRAITEMENT /Amiodarone/Cordarone" = "Amiodarone/Cordarone",
+     "V TRAITEMENT /Bromocriptine" = "Bromocriptine"	,
+     "V TRAITEMENT /Héparine" = "Héparine",
+     "V TRAITEMENT /AVK/AOD" = "AVK/AOD",
+     "V TRAITEMENT /AAP" = "AAP"	,
+     "V TRAITEMENT /Statines" = "Statines",
+     "Cardiaque :TDR" = "TDR",
+     "Cardiaque :Poussée HTA" = "Poussée HTA",
+     "Cardiaque :Poussée Ischémique" = "Poussée Ischémique",
+     "Cardiaque :Rupture thérapeutique" = "Rupture thérapeutique"	,
+     "Cardiaque :Insuffisance thérapeutique" = "Insuffisance thérapeutique",
+     "Cardiaque :Dysfonction valvulaire" = "Dysfonction valvulaire",
+     "Cardiaque :Evolution naturelle de la maladie" = "Evolution naturelle de la maladie"	,
+     "Extracardiaque :Pneumopathie" = "Pneumopathie",
+     "Extracardiaque :Fièvre" = "Fièvre",
+     "Extracardiaque :Poussée Insuffisance rénale" = "Poussée Insuffisance rénale",
+     "Extracardiaque :Dysthyroïdie" = "Dysthyroïdie"
+  )
+```
+
+
+# Caracteristiques socio-démographiques
+#Etat civil
+```{r message = FALSE}
+data_s%>%
+  select("Année :",'Age',"age_bis",'Sexe','Profession','Niveau socioéconomique',"CHU","Niveau d'étude")%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),type = c("Age")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+
+##Age en fonction du sexe
+```{r message = FALSE}
+data_s%>%
+  select('Sexe','Age', age_bis)%>%
+  tbl_summary(
+    by = 'Sexe',
+    digits = all_categorical()~c(0,1),
+    type = c("Age")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+#Répartition des antécedents des patients
+
+```{r message = FALSE}
+data_s%>%
+  select("Antécédents Majeurs :HTA",    "Antécédents Majeurs :Diabète", "Antécédents Majeurs :Tabagisme",   "Antécédents Majeurs :Dyslipidémie",    "Antécédents Majeurs :Autres",  "Autres antécedents majeurs :", "Antécédents Mineurs :Obésité",     
+"Antécédents Mineurs :Sédentaristé",    "Antécédents Mineurs :SAS", "Antécédents Mineurs :Excès d'alcool",  "Antécédents Mineurs :stress",  "Antécédents Mineurs :Ins Rénal",  "Antécédents Mineurs :VIH/SIDA",   "Antécédents Mineurs :Autres", "Autres antécédent mineurs :"
+)%>%
+  tbl_summary(
+    ##by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+    )
+    )
+```
+
+#Diagnostic clinique et paraclinique
+##Répartition des motifs de consultation selon les CHU
+```{r message = FALSE}
+data_s%>%
+  select("Motifs de consultation/Douleur thoracique" ,  "Motifs de consultation/Dyspnée d'effort",  "Motifs de consultation/Dyspnée paroxystique"   ,"Motifs de consultation/OMI",  "Motifs de consultation/Asthénie",  "Motifs de consultation/Toux de décubitus", "Motifs de consultation/Orthopnée" ,    "Motifs de consultation/Palpitation")%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+##Répartition des paramètres
+```{r message = FALSE}
+data_s%>%
+  select("TA_class","FC_bis","SPO2","IMC_bis")%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+##Répartition de la dyspnée selon les stades de NYHA
+```{r message = FALSE}
+
+dyspnee <- subset(data_s,  Dyspne_d_effort== 1)
+dyspnee%>%
+  select("Stade selon NYHA")%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+   #percent = "col",
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+##Répartition selon l’examen cardiovasculaires et pulmonaire
+```{r message = FALSE}
+data_s%>%
+  select(#"Examen de l'appareil cardio vasculaire et pulmonaire/Paroxystique",
+         "Examen de l'appareil cardio vasculaire et pulmonaire/Tachycardie", "Examen de l'appareil cardio vasculaire et pulmonaire/Galop gauche",    "Examen de l'appareil cardio vasculaire et pulmonaire/Galop droit", "Examen de l'appareil cardio vasculaire et pulmonaire/OMI", "Examen de l'appareil cardio vasculaire et pulmonaire/HMG", "Examen de l'appareil cardio vasculaire et pulmonaire/TSVJ",    "Examen de l'appareil cardio vasculaire et pulmonaire/RHJ", "Examen de l'appareil cardio vasculaire et pulmonaire/Orthopnée",   "Examen de l'appareil cardio vasculaire et pulmonaire/Toux de decubitus",   "Examen de l'appareil cardio vasculaire et pulmonaire/Douleur thoracique",  
+  "Examen de l'appareil cardio vasculaire et pulmonaire/Palpitation",   "Examen de l'appareil cardio vasculaire et pulmonaire/Insuffisance cardiaque gauche",   "Examen de l'appareil cardio vasculaire et pulmonaire/Insuffisance cardiaque droite",   "Examen de l'appareil cardio vasculaire et pulmonaire/Insuffisance cardiaque globale",  "Examen de l'appareil cardio vasculaire et pulmonaire/Condensation pulmonaire gauche",  "Examen de l'appareil cardio vasculaire et pulmonaire/Condensation pulmonaire droit",   "Examen de l'appareil cardio vasculaire et pulmonaire/Condensation pulmonaire bilatérale",  "Examen de l'appareil cardio vasculaire et pulmonaire/Ascite",  "Examen de l'appareil cardio vasculaire et pulmonaire/Etat d'anasarque",    "Examen de l'appareil cardio vasculaire et pulmonaire/Etat de choc",    "Examen de l'appareil cardio vasculaire et pulmonaire/CDP latero dévié",    "Examen de l'appareil cardio vasculaire et pulmonaire/Souffle d'IM",    "Examen de l'appareil cardio vasculaire et pulmonaire/Râle crépitants", "Examen de l'appareil cardio vasculaire et pulmonaire/Syndrome d'épanchement pleural",  "Examen de l'appareil cardio vasculaire et pulmonaire/Syndrome de condensation pulmonaire", "Examen de l'appareil cardio vasculaire et pulmonaire/Trouble de décomposition"
+)%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+
+##Répartition selon les anomalies à l’ECG
+```{r message = FALSE}
+data_s%>%
+  select("ECG Normale", "RSR",  "ESA",  "ACFA", "BBG",  "ESV",  "TV",   "SCAT ST +",    "SCAT ST -"
+)%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+
+##Répartition des patients selon les aspects échocardiographies
+```{r message = FALSE}
+data_s%>%
+  select("FEVG<=30", "FEVG>=40",  "Dysfonction du ventricule droit",  "PRVG", "Akinésie segmentaire",  "Atteintes vavulaires",  "Trombus intra cavitaire",   "Débit Cardiaque (IC)"
+)%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+##Représentation des éléments biologiques des patients
+
+```{r message = FALSE}
+data_s%>%
+  select("Hémoglobine","Clairance de la créatinine","Natrémie", "Kaliémie"
+)%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+#IV. Aspects Etiologiques 
+```{r message = FALSE}
+data_s%>%
+  select("IV. DIAGNOSTIC ETIOLOGIQUE /CMD",	"IV. DIAGNOSTIC ETIOLOGIQUE /CMH",	"IV. DIAGNOSTIC ETIOLOGIQUE /CMR",	"IV. DIAGNOSTIC ETIOLOGIQUE /CMPP",	"IV. DIAGNOSTIC ETIOLOGIQUE /Cardiothyréose",	"IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie hypertensive",	"IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie ischémique",	"IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie rythmique",	"IV. DIAGNOSTIC ETIOLOGIQUE /Valvulopathies")%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+# V Aspects Thérapeutiques 
+```{r message = FALSE}
+data_s%>%
+  select("V TRAITEMENT /Furosémide",	"V TRAITEMENT /Aldactone",	"V TRAITEMENT /IEC/ARAII"	,"V TRAITEMENT /Bêtabloquant",	"V TRAITEMENT /Digoxine",	"V TRAITEMENT /Empagliflozine"	,"V TRAITEMENT /Entresto","V TRAITEMENT /Amiodarone/Cordarone",	"V TRAITEMENT /Bromocriptine"	,"V TRAITEMENT /Héparine",	"V TRAITEMENT /AVK/AOD",	"V TRAITEMENT /AAP"	,"V TRAITEMENT /Statines")%>%
+  tbl_summary(
+    #by = "CHU :",
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_continuous()~c("{mean} ({sd})"),
+      all_categorical()~c("{n} ({p})")
+      
+    )
+  )
+```
+
+#Evolution et pronostic de l’insuffisance cardiaque 
+```{r message = FALSE}
+data_s%>%
+  select("Durée d'hospitalisation(en jours)",	
+         #"Nombre d'hospitalisation", 
+         "Cardiaque :TDR",	"Cardiaque :Poussée HTA",	"Cardiaque :Poussée Ischémique",	"Cardiaque :Rupture thérapeutique"	,"Cardiaque :Insuffisance thérapeutique",	"Cardiaque :Dysfonction valvulaire",	
+         "Cardiaque :Evolution naturelle de la maladie"	,"Extracardiaque :Pneumopathie",	"Extracardiaque :Fièvre",	"Extracardiaque :Poussée Insuffisance rénale",	"Extracardiaque :Dysthyroïdie", "Favorable",	"Défavorable :"	,"Patients selon la survie"
+)%>%
+  tbl_summary(
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous()~c("{mean} ({sd})")
+      
+    )
+  )
+```
+#9.2	Causes de décès
+```{r message = FALSE}
+#Creation de la base des décédés
+data_s_deces <- subset(data_s,  patient_deces== 1)
+
+#Recodage de quelques variables
+## Recoding data_s_deces$`Insuffisance cardiaque réfractaire`
+data_s_deces$`Insuffisance cardiaque réfractaire` <- as.factor(data_s_deces$`Insuffisance cardiaque réfractaire`) %>%
+  fct_na_value_to_level("Non")
+## Recoding data_s_deces$`Choc cardiogénique`
+data_s_deces$`Choc cardiogénique` <- data_s_deces$`Choc cardiogénique` %>%
+  fct_na_value_to_level("Non")
+## Recoding data_s_deces$OAP
+data_s_deces$OAP <- data_s_deces$OAP %>%
+  fct_na_value_to_level("Non")
+## Recoding data_s_deces$`Embolie pulmonaire`
+data_s_deces$`Embolie pulmonaire` <- data_s_deces$`Embolie pulmonaire` %>%
+  fct_na_value_to_level("Non")
+## Recoding data_s_deces$`TDR mal toléré`
+data_s_deces$`TDR mal toléré` <- data_s_deces$`TDR mal toléré` %>%
+  fct_na_value_to_level("Non")
+## Recoding data_s_deces$`Lieu du décès`
+data_s_deces$`Lieu du décès` <- data_s_deces$`Lieu du décès` %>%
+  fct_na_value_to_level("Non hospitalier")
+
+data_s_deces%>%
+  select("Insuffisance cardiaque réfractaire", 	"Choc cardiogénique", 	"OAP",	"Embolie pulmonaire",	"TDR mal toléré",
+         "Duree_diag_deces_1",
+         "Lieu du décès")%>%
+  tbl_summary(
+    digits = all_categorical()~c(0,1),
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous()~c("{mean} ({sd})")
+      
+    )
+  )
+```
+#Analyse de survie
+##Creation de la BDD pour l'analyse de survie
+```{r}
+FICHE_D_ENQUETE = c(1:301)
+survie_s <- as.data.frame(FICHE_D_ENQUETE)
+#subset
+```
+
+##variables time et event
+```{r}
+
+data_s <- data_s %>%
+  mutate(
+    deces = if_else(patient_deces == 1,1,0),
+    time = if_else(patient_deces == 1,
+                         Duree_diag_deces,
+                         if_else(patient_deces == 2,
+                                 Duree_diag_perdu_vue,
+                                 Duree_diag_point)
+    )
+  )%>%
+  set_value_labels(deces = c("En vie/Perdu de vue" = 0, "décédé" = 1))
+```
+##Recodage de variable
+```{r}
+survie_s <- survie_s%>%
+  left_join(
+    data_s%>%
+      select(FICHE_D_ENQUETE,Age,
+             stade_NYHA="Stade de NYHA",
+             Cardiopathie_ischemique="IV. DIAGNOSTIC ETIOLOGIQUE /Cardiopathie ischémique",
+             #anemie_severe = "Anémie sévère", 
+             ins_renale_severe = "Ins Rénale sévère",
+             Hyponatremie = "Kaliémie",ACFA = 'ACFA/FLUTTER', QRS_large = "QRS large",ESV,TV, FEVG ="FEVG:",
+             Dysfonction_VD = "Dysfonction du ventricule droit",PRVG,deces, time, TH = "Hémoglobine", Sexe
+             ),
+    by = "FICHE_D_ENQUETE"
+  )
+
+## Cutting survie_s$Age into survie_s$age_bis1
+survie_s$age_eleve <- cut(survie_s$Age,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(22, 75, 80),
+  labels = c("<75","75+")
+)%>%
+  to_factor()
+
+## Cutting survie_s$FEVG into survie_s$FEVG_bis
+survie_s$FEVG_bis <- cut(survie_s$FEVG,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 30, 100),
+  labels = c("<30%",">=30%")
+)%>% to_factor()
+
+## Recoding survie_s$Hyponatremie
+survie_s$Hyponatremie <- survie_s$Hyponatremie %>%
+  fct_recode(
+    "Non" = "Hypokaliémie moyenne",
+    "Oui" = "Hypokaliéme sévère",
+    "Non" = "Hypokaliémie modérée",
+    "Non" = "Normale"
+  )%>%
+  fct_relevel("Oui")
+## Recoding survie_s$TH into survie_s$anemie_severe
+survie_s$anemie_severe <- survie_s$TH %>%
+  fct_recode(
+    "Oui" = "Anémie sévère",
+    "Non" = "Anémie modérée",
+    "Non" = "Anémie légère",
+    "Non" = "Normale"
+  )
+survie_s <- survie_s%>%
+  mutate(
+    Cardiopathie_ischemique = to_factor(Cardiopathie_ischemique),
+    #anemie_severe = to_factor(anemie_severe),
+    ins_renale_severe = to_factor(ins_renale_severe),
+    Hyponatremie = to_factor(Hyponatremie),
+    ACFA = to_factor(ACFA),
+    QRS_large = to_factor(QRS_large),
+    stade_NYHA = to_factor(stade_NYHA)
+    
+  )%>%
+  set_value_labels(deces = c("Oui" = 0, "Non" = 1))
+
+survie_s$ACFA <- survie_s$ACFA %>%
+  fct_na_value_to_level("Non")
+survie_s$QRS_large <- survie_s$QRS_large %>%
+  fct_na_value_to_level("Non")
+survie_s$stade_NYHA <- survie_s$stade_NYHA %>%
+  fct_na_value_to_level("III")
+
+# library("writexl")
+# 
+# write_xlsx(survie_s, "~\Dropbox\GerardShare\Doc_s_MBAIDEDJIM_25082023\Trash")
+```
+##Courbe de Kaplan-Meier
+```{r message = FALSE}
+km_globale <- survfit(Surv(time,deces)~1, data = survie_s)
+ggsurvplot(km_globale,
+            break.time.by = 3,
+            break.y.by = 0.1,
+            xlab = "Durée (mois)", 
+            ylab = "Probabilité de survie",
+            legend.labs = FALSE,
+            conf.int = FALSE,
+           censor = FALSE,
+           ylim = c(0.5,1.1)
+            #legend.title = "", 
+            #legend.labs = c("")
+           )
+```
+
+##Clinique
+```{r message = FALSE}
+##Age élevé ≥75 ans…  
+km_age <- survfit(Surv(time,deces)~age_eleve, data= survie_s)
+#survdiff(Surv(time,deces)~age_eleve, data = survie_s)
+ggsurvplot(km_age, break.time.by = 3,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Age (ans):", 
+           legend.labs = c("<75", "75+"),
+           legend =  c(0.8,0.5),
+           censor = FALSE,
+           ylim = c(0.5,1.1)
+           )
+
+km_sexe <- survfit(Surv(time,deces)~Sexe, data= survie_s)
+#survdiff(Surv(time,deces)~age_eleve, data = survie_s)
+ggsurvplot(km_sexe, break.time.by = 3,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Sexe", 
+           legend.labs = c("Féminin", "Masculin"),
+           legend =  c(0.8,0.5),
+           censor = FALSE,
+           ylim = c(0.5,1.1)
+           )
+
+##-	Stade de NYHA : III…IV ….
+km_Stade_NYHA <- survfit(Surv(time,deces)~stade_NYHA, data= survie_s)
+#survdiff(Surv(time,deces)~stade_NYHA, data= survie_s)
+ggsurvplot(km_Stade_NYHA, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Stade de NYHA:", 
+           legend.labs = c("III", "IV"),
+           legend =  c(0.8,0.35),            
+           censor = FALSE,            
+           ylim = c(0.4,1.1)
+           )
+
+km_CI <- survfit(Surv(time,deces)~Cardiopathie_ischemique, data= survie_s)
+ggsurvplot(km_CI, break.time.by = 3 ,pval = TRUE , 
+           break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Cardiopathie ischémique:", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.5),            
+           censor = FALSE,            
+           ylim = c(0.5,1.1)
+           )
+
+```
+
+
+##Electrocardiogramme
+```{r message = FALSE}
+
+km_ACFA <- survfit(Surv(time,deces)~ACFA, data= survie_s)
+ggsurvplot(km_ACFA, break.time.by = 3 ,pval = TRUE , 
+           break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "ACFA :", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.5),            
+           censor = FALSE,            
+           ylim = c(0.5,1.1)
+           )
+
+km_QRS_large <- survfit(Surv(time,deces)~QRS_large, data= survie_s)
+ggsurvplot(km_QRS_large, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "QRS large :", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.5),            
+           censor = FALSE,            
+           ylim = c(0.5,1.1)
+           )
+
+km_ESV <- survfit(Surv(time,deces)~ESV, data= survie_s)
+ggsurvplot(km_ESV, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "ESV :", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.5),            
+           censor = FALSE,            
+           ylim = c(0.5,1.1)
+           )
+
+km_TV <- survfit(Surv(time,deces)~TV, data= survie_s)
+ggsurvplot(km_TV, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "TV :", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.5),            
+           censor = FALSE,            
+           ylim = c(0.5,1.1)
+           )
+```
+
+
+
+##Biologie #Pas d'anémie
+```{r message = FALSE}
+#Pas d'anémie
+# km_anemie_severe <- survfit(Surv(time,deces)~anemie_severe, data= survie_s)
+# ggsurvplot(km_anemie_severe, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+#            pval.coord = c(9, 1.05),
+#            xlab = "Durée (mois)", 
+#            ylab = "Probabilité de survie",
+#            legend.title = "Anemie sévère :", 
+#            legend.labs = c("Non", "Oui"),
+#            legend =  c(0.8,0.5),            censor = FALSE,            ylim = c(0.5,1.1)
+#            )
+
+km_ins_renale_severe <- survfit(Surv(time,deces)~ins_renale_severe, data= survie_s)
+ggsurvplot(km_ins_renale_severe, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Insuffisance  renale sévère :", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.7),            
+           censor = FALSE,            
+           ylim = c(0.3,1.1)
+           )
+
+km_Hyponatremie <- survfit(Surv(time,deces)~Hyponatremie, data= survie_s)
+ggsurvplot(km_Hyponatremie, break.time.by = 3 ,pval = TRUE , break.y.by = 0.2,
+           pval.coord = c(9, 1.05),
+           #bold_p,
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Hyponatremie :", 
+           legend.labs = c("Oui", "Non"),
+           legend =  c(0.8,0.25),            
+           censor = FALSE,            
+           ylim = c(0,1.1)
+           )
+
+```
+
+
+##Echographie doppler cardiaque
+```{r message = FALSE}
+km_FEVG <- survfit(Surv(time,deces)~FEVG_bis, data= survie_s)
+ggsurvplot(km_FEVG, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "FEVG :", 
+           legend.labs = c("<30%", ">=30%"),
+           legend =  c(0.8,0.5),            
+           censor = FALSE,            
+           ylim = c(0.2,1.1)
+           )
+
+km_Dysfonction_VD <- survfit(Surv(time,deces)~Dysfonction_VD, data= survie_s)
+ggsurvplot(km_Dysfonction_VD, break.time.by = 3 ,pval = TRUE , break.y.by = 0.2,
+           pval.coord = c(9, 1.05),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "Dysfonction du VD :", 
+           legend.labs = c("Non", "Oui"),
+           legend =  c(0.8,0.4),            
+           censor = FALSE,            
+           ylim = c(0,1.1)
+           )
+
+km_PRVG <- survfit(Surv(time,deces)~PRVG, data= survie_s)
+ggsurvplot(km_PRVG, break.time.by = 3 ,pval = TRUE , break.y.by = 0.1,
+           pval.coord = c(24, 1),
+           xlab = "Durée (mois)", 
+           ylab = "Probabilité de survie",
+           legend.title = "PRVG élevées :", 
+           legend.labs = c("Oui", "Non"),
+           legend =  c(0.8,0.5),            censor = FALSE,            ylim = c(0.5,1.1),
+           
+           )
+```
+
+##Modele de cox
+
+```{r message = FALSE}
+## Reordering survie_s$FEVG_bis into survie_s$FEVG_1
+survie_s$FEVG_1 <- survie_s$FEVG_bis %>%
+  fct_relevel(
+    ">=30%", "<30%"
+  )
+
+# 
+# 
+# dep <- c("Surv(time,deces)")
+# 
+# #model initial----
+# vars <- c("age_eleve", 
+#           "Sexe" ,"stade_NYHA","Cardiopathie_ischemique"	,"ins_renale_severe",	"Hyponatremie" ,"FEVG_1",	"Dysfonction_VD",	"PRVG" , "ESV", "TV" , "ACFA" , "QRS_large")
+# tab <- finalfit(survie_s, dep, vars)
+# knitr::kable(tab, row.names = FALSE)
+# #model final----
+# vars <- c("age","Sexe","VIH")
+# tab <- finalfit(TBmarie, dep, vars)
+# knitr::kable(tab, row.names = FALSE)
+# 
+# mod1 = coxph(
+#   Surv(time,deces)~age_eleve + stade_NYHA	+ins_renale_severe+	Hyponatremie +FEVG_1+	Dysfonction_VD + ACFA , data= survie_s
+
+  #stade_NYHA, Cardiopathie_ischemique, ACFA, QRS_large,ESV, TV ins_renale_severe  Hyponatremie FEVG_bis Dysfonction_VD PRVG
+#)
+
+# mod1 = coxph(
+#   Surv(time,deces)~age_eleve + stade_NYHA+Cardiopathie_ischemique	+ins_renale_severe+	Hyponatremie +FEVG_1+	Dysfonction_VD+	PRVG + ESV+ TV + ACFA + QRS_large, data= survie_s
+# 
+#   #stade_NYHA, Cardiopathie_ischemique, ACFA, QRS_large,ESV, TV ins_renale_severe  Hyponatremie FEVG_bis Dysfonction_VD PRVG
+# )
+
+# library(gtsummary)
+# library(GGally)
+# tbl <- tbl_regression(mod1, exponentiate = TRUE)
+# tbl %>% 
+#   add_global_p(keep = FALSE)%>%
+#   bold_p(t=0.05)  
+# 
+# mod2 <- step(mod1)
+# 
+# tbl <- tbl_regression(mod2, exponentiate = TRUE)
+# tbl %>% 
+#   add_global_p(keep = FALSE)%>%
+#   bold_p(t=0.05) 
+
+
+```
+
+#Tableau modele finale
+```{r}
+
+# modele_univariable <- survie_s %>%
+#   select(age_eleve, Sexe,stade_NYHA,Cardiopathie_ischemique	,ins_renale_severe,	Hyponatremie ,FEVG_1,	Dysfonction_VD,	PRVG , ESV, TV , ACFA , QRS_large) %>%
+#   tbl_uvregression(
+#     method = coxph,
+#     y = Surv(time,deces),
+#     exponentiate = T,
+#     #add_estimate_to_reference_rows = T,
+#     pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ","),
+#     #hide_n = T
+#     ) %>%
+#   add_global_p(keep = T)%>%
+#   bold_p(t=0.05) 
+# 
+# modele_multivariable <- glm (Deces ~ age_bis + 
+#                                VIH + ATCDdeTB , 
+#                              data = TBmarie,
+#                              family = binomial) %>%
+#   tbl_regression(exponentiate = T,
+#                  add_estimate_to_reference_rows = T,
+#                  pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+#   ) %>%
+#   add_global_p(keep = T)%>%
+#   bold_p(t=0.05)
+#   
+# 
+# modele_final <- tbl_merge(
+#   list(modele_univariable, modele_multivariable),
+#   tab_spanner = c("**Modèle univariable**","**Modèle multivariable**")
+# )  
+# 
+# modele_final
+```

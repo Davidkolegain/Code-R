@@ -1,0 +1,1442 @@
+---
+title: "FACTEURS PRONOSTIQUES DE L’EMBOLIE PULMONAIRE"
+author: "KYD"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+#Importation de la base et bibliothèques
+```{r message = FALSE}
+library(tidyverse)
+library(labelled)
+library(questionr)
+library(gtsummary)
+library(readxl)
+library("writexl")
+library(gmodels)
+library(forestmodel)
+library(finalfit)
+library(binom) 
+library(lubridate)
+
+embolie_pulmonaire <- read_excel("Data/FACTEURS_PRONOSTIQUES_DE_LEMBOLIE_PULMONAIRE_-_all_versions_-_labels_-_2023-07-31-17-18-10.xlsx")
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")
+
+```
+
+
+#Recodage de variables
+
+```{r message }
+## Recoding embolie_pulmonaire$`Année :`
+# embolie_pulmonaire$`Année :` <- embolie_pulmonaire$`Année :` %>%
+#   as.character() %>%
+#   fct_recode(
+#     "2020" = "202",
+#     "2020" = "3020"
+#   )
+#embolie_pulmonaire%>%replace_na("56")
+## Cutting embolie_pulmonaire$`Age (ans):` into embolie_pulmonaire$age_class
+embolie_pulmonaire$age_class <- cut(embolie_pulmonaire$`Age (ans):`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(18, 30, 40, 50, 60, 70, 80, 200),
+  labels = c("18-29","30-39","40-49","50-59","60-69","70-79","80+")
+)
+## Recoding embolie_pulmonaire$Décès
+embolie_pulmonaire$Décès <- embolie_pulmonaire$Décès %>%
+  fct_na_value_to_level("Non")
+## Recoding embolie_pulmonaire$`ATCD Cardiovasculaires du patient :`
+embolie_pulmonaire$`ATCD Cardiovasculaires du patient :` <- embolie_pulmonaire$`ATCD Cardiovasculaires du patient :` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`Etat général:` <- embolie_pulmonaire$`Etat général:` %>%
+  fct_na_value_to_level("Bon")
+embolie_pulmonaire$IMC_bis <- cut(embolie_pulmonaire$`IMC(kg/m²) :`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(18, 25, 30, 35, 40, 100),
+  labels = c("Normal","Surpoids","Obésité classe I","Obésité classe II (sévère)","Obésité classe III (massive)")
+) %>%
+  fct_na_value_to_level("Normal")
+embolie_pulmonaire$`Nationnalité :` <- embolie_pulmonaire$`Nationnalité :` %>%
+  fct_na_value_to_level("Autre")
+
+embolie_pulmonaire$`SCA ST+` <- embolie_pulmonaire$`SCA ST+` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`SCA ST-` <- embolie_pulmonaire$`SCA ST-` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`Troubles conductifs` <- embolie_pulmonaire$`Troubles conductifs` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`Trouble du rythme` <- embolie_pulmonaire$`Trouble du rythme` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`CMD` <- embolie_pulmonaire$`CMD` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`CMPP` <- embolie_pulmonaire$`CMPP` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`CMR` <- embolie_pulmonaire$`CMR` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`DADV` <- embolie_pulmonaire$`DADV` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`CI Dilatée` <- embolie_pulmonaire$`CI Dilatée` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`ICFEP` <- embolie_pulmonaire$`ICFEP` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`Embolie pulmonaire :` <- embolie_pulmonaire$`Embolie pulmonaire :` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`CPC` <- embolie_pulmonaire$`CPC` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`HTAP` <- embolie_pulmonaire$`HTAP` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`HTA maligne` <- embolie_pulmonaire$`HTA maligne` %>%
+  fct_na_value_to_level("Non")
+embolie_pulmonaire$`Encéphalopathie hypertensive` <- embolie_pulmonaire$`Encéphalopathie hypertensive` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`AVCI` <- embolie_pulmonaire$`AVCI` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`AVCH` <- embolie_pulmonaire$`AVCH` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Autres antécedents cordiovasculaires` <- embolie_pulmonaire$`Autres antécedents cordiovasculaires` %>%
+ fct_na_value_to_level("Non")
+
+embolie_pulmonaire$`Tabagisme:` <- embolie_pulmonaire$`Tabagisme:` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`HTA :` <- embolie_pulmonaire$`HTA :` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Diabète:` <- embolie_pulmonaire$`Diabète:` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`IRC` <- embolie_pulmonaire$`IRC` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`VIH` <- embolie_pulmonaire$`VIH` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Absence d’activité physique régulière` <- embolie_pulmonaire$`Absence d’activité physique régulière` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Obésité` <- embolie_pulmonaire$`Obésité` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Syndrome métabolique 1` <- embolie_pulmonaire$`Syndrome métabolique 1` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Dyslipidémie` <- embolie_pulmonaire$`Dyslipidémie` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Alcool` <- embolie_pulmonaire$`Alcool` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Accident cardiovasculaire précoce familial` <- embolie_pulmonaire$`Accident cardiovasculaire précoce familial` %>%
+ fct_na_value_to_level("Non")
+
+embolie_pulmonaire$`Insuffisance veineuse chronique` <- embolie_pulmonaire$`Insuffisance veineuse chronique` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Immobilisation` <- embolie_pulmonaire$`Immobilisation` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Chirurgie récente :` <- embolie_pulmonaire$`Chirurgie récente :` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Néoplasie évolutive` <- embolie_pulmonaire$`Néoplasie évolutive` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Chimiothérapie` <- embolie_pulmonaire$`Chimiothérapie` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Insuffisance cardiaque décompensée` <- embolie_pulmonaire$`Insuffisance cardiaque décompensée` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Insuffisance respiratoire décompensée` <- embolie_pulmonaire$`Insuffisance respiratoire décompensée` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`BPCO` <- embolie_pulmonaire$`BPCO` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Grossesse` <- embolie_pulmonaire$`Grossesse` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Post-partum` <- embolie_pulmonaire$`Post-partum` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`VIH (Facteurs de MTEV)` <- embolie_pulmonaire$`VIH (Facteurs de MTEV)` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Long voyage récent (˃5h)` <- embolie_pulmonaire$`Long voyage récent (˃5h)` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Syndrome métabolique 2` <- embolie_pulmonaire$`Syndrome métabolique 2` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`HTA (Facteurs de MTEV)` <- embolie_pulmonaire$`HTA (Facteurs de MTEV)` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Surpoids` <- embolie_pulmonaire$`Surpoids` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`KT central` <- embolie_pulmonaire$`KT central` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Œstroprogestatifs` <- embolie_pulmonaire$`Œstroprogestatifs` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Thrombophilie acquise (SAPL)` <- embolie_pulmonaire$`Thrombophilie acquise (SAPL)` %>%
+ fct_na_value_to_level("Non")
+embolie_pulmonaire$`Thrombophilie constitutionnelle` <- embolie_pulmonaire$`Thrombophilie constitutionnelle` %>%
+ fct_na_value_to_level("Non")
+## Recoding embolie_pulmonaire$`12. Prise en charge/Thrombolytique` into embolie_pulmonaire$thrombolyse
+embolie_pulmonaire$thrombolyse <- embolie_pulmonaire$`12. Prise en charge/Thrombolytique` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  ) %>%
+  fct_explicit_na("Non")
+
+## Cutting embolie_pulmonaire$`Clairance (mL/min):` into embolie_pulmonaire$`Clairance (mL/min)`
+embolie_pulmonaire$`Clairance_bis` <- cut(embolie_pulmonaire$`Clairance (mL/min):`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 60, 198),
+  labels = c("<60","60+")
+)%>%
+  fct_na_value_to_level("60+")
+## Cutting embolie_pulmonaire$PHR into embolie_pulmonaire$PHR_bis
+embolie_pulmonaire$PHR_bis <- cut(embolie_pulmonaire$PHR,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(2.1, 13.6, 17.5, 24.6, 113)
+)
+## Cutting embolie_pulmonaire$PHR into embolie_pulmonaire$PHR_bis
+embolie_pulmonaire$PHR_bis_2 <- cut(embolie_pulmonaire$PHR,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(2.1,17.5, 113)
+)
+## Recoding embolie_pulmonaire$`D-Dimères`
+embolie_pulmonaire$`D-Dimères` <- embolie_pulmonaire$`D-Dimères` %>%
+  fct_explicit_na("Non fait")
+## Cutting embolie_pulmonaire$`valeurs D-Dimères (microg/l)` into embolie_pulmonaire$DDimeres_bis
+embolie_pulmonaire$DDimeres_bis <- cut(embolie_pulmonaire$`valeurs D-Dimères (microg/l)`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 1500, 3501, 5501, 2e+05),
+  labels = c("<1500", "1500-3500", "3501-5500", ">5500")
+)
+## Cutting embolie_pulmonaire$`valeurs Troponine I (ng/l)` into embolie_pulmonaire$val_tropo_1
+embolie_pulmonaire$val_tropo_H <- cut(embolie_pulmonaire$`valeurs Troponine I (ng/l)`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 25, 2000),
+  labels = c("<25","25+")
+)
+embolie_pulmonaire$val_tropo_F <- cut(embolie_pulmonaire$`valeurs Troponine I (ng/l)`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 11, 2000),
+  labels = c("<11","11+")
+)
+
+embolie_pulmonaire$sexe <- embolie_pulmonaire$`Sexe :`
+embolie_pulmonaire <- embolie_pulmonaire %>%
+  mutate(
+    troponineI = if_else(sexe == "Homme",val_tropo_H,val_tropo_F)
+    )
+  
+embolie_pulmonaire$troponineI<-embolie_pulmonaire$troponineI%>%
+  fct_recode(
+    "Oui" = "25+", 
+    "Oui" = "11+", 
+    "Non" = "<11", 
+    "Non"= "<25"
+    )
+embolie_pulmonaire$Score_de_PESIs <- embolie_pulmonaire$`Score de PESI simplifié` %>%
+  fct_recode(
+    "1+" = ">=3",
+    "1+" = "1",
+    "1+" = "2"
+  )
+## Cutting embolie_pulmonaire$`TAPSE(mm):` into embolie_pulmonaire$dysfonction_VD
+embolie_pulmonaire$dysfonction_VD <- cut(embolie_pulmonaire$`TAPSE(mm):`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 16, 50),
+  labels = c("<16","16+")
+)
+## Cutting embolie_pulmonaire$`valeur Natrémie (mmol/l)` into embolie_pulmonaire$hyponatremie
+embolie_pulmonaire$hyponatremie <- cut(embolie_pulmonaire$`valeur Natrémie (mmol/l)`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 130, 135,160),
+  labels = c("<130","130-135","135+")
+)
+embolie_pulmonaire$presence_neoplasie <- embolie_pulmonaire$`Néoplasie évolutive`
+## Cutting embolie_pulmonaire$`PAPS(mmHg)` into embolie_pulmonaire$PAPS_bis
+embolie_pulmonaire$PAPS_bis <- cut(embolie_pulmonaire$`PAPS(mmHg)`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 40, 120),
+  labels = c("<40","40+")
+)
+## Cutting embolie_pulmonaire$FEVG into embolie_pulmonaire$FEVG_bis
+embolie_pulmonaire$FEVG_bis <- cut(embolie_pulmonaire$FEVG,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 50, 100),
+  labels = c("<50","50+")
+)
+embolie_pulmonaire$`Décès` <- embolie_pulmonaire$`Décès` %>%
+ fct_na_value_to_level("Non")
+## Recoding embolie_pulmonaire$`Score de PESI simplifié` into embolie_pulmonaire$Score_de_PESIs
+
+embolie_pulmonaire$presence_neoplasie <- embolie_pulmonaire$`Néoplasie évolutive`
+## Cutting embolie_pulmonaire$`Age (ans):` into embolie_pulmonaire$age_bis
+embolie_pulmonaire$age_bis <- cut(embolie_pulmonaire$`Age (ans):`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(20, 60, 100),
+  labels = c("<60","60+")
+)
+
+# embolie_pulmonaire$`` <- embolie_pulmonaire$`` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`` <- embolie_pulmonaire$`` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`` <- embolie_pulmonaire$`` %>%
+#  fct_na_value_to_level("Non")
+
+## Recoding embolie_pulmonaire$`Précisez autre nationnalité`
+embolie_pulmonaire$`Précisez autre nationnalité` <- embolie_pulmonaire$`Précisez autre nationnalité` %>%
+  fct_recode(
+    "Béninoise" = "BENIN",
+    "Béninoise" = "BENINOISE",
+    "Ivoirienne" = "IVOIRIEN",
+    "Nigerienne" = "NIGERIEN"
+  )
+
+embolie_pulmonaire$`Traitement par EPO` <- embolie_pulmonaire$`Traitement par EPO` %>%
+ fct_na_value_to_level("Non")
+
+embolie_pulmonaire$`Autres(Facteurs de MTEV )` <- embolie_pulmonaire$`Autres(Facteurs de MTEV )` %>%
+ fct_na_value_to_level("Non")
+
+embolie_pulmonaire$`Thrombose veineuse profonde associée` <- embolie_pulmonaire$`Thrombose veineuse profonde associée` %>%
+ fct_na_value_to_level("Non")
+# embolie_pulmonaire$`VD dilaté` <- embolie_pulmonaire$`VD dilaté` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`Rapport VD/VG>0.9` <- embolie_pulmonaire$`Rapport VD/VG>0.9` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`HTAP_1` <- embolie_pulmonaire$`HTAP_1` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`Epanchement péricardique` <- embolie_pulmonaire$`Epanchement péricardique` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`Septum paradoxal` <- embolie_pulmonaire$`Septum paradoxal` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`Thrombus VD/VG` <- embolie_pulmonaire$`Thrombus VD/VG` %>%
+#  fct_na_value_to_level("Non")
+# embolie_pulmonaire$`` <- embolie_pulmonaire$`` %>%
+#  fct_na_value_to_level("Non")
+## Recoding embolie_pulmonaire$IMC_bis into embolie_pulmonaire$surpoids_bis
+embolie_pulmonaire$surpoids_bis <- embolie_pulmonaire$IMC_bis %>%
+  fct_recode(
+    "Non" = "Normal",
+    "Oui" = "Surpoids",
+    "Non" = "Obésité classe I",
+    "Non" = "Obésité classe II (sévère)",
+    "Non" = "Obésité classe III (massive)"
+  )
+
+embolie_pulmonaire$obesite_bis <- embolie_pulmonaire$IMC_bis %>%
+  fct_recode(
+    "Non" = "Normal",
+    "Non" = "Surpoids",
+    "Oui" = "Obésité classe I",
+    "Oui" = "Obésité classe II (sévère)",
+    "Oui" = "Obésité classe III (massive)"
+  )
+## Cutting embolie_pulmonaire$`15.Durée d’hospitalisation dans le service (jours):` into embolie_pulmonaire$Duree_hospi_class
+embolie_pulmonaire$Duree_hospi_class <- cut(embolie_pulmonaire$`15.Durée d’hospitalisation dans le service (jours):`,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(1, 8, 15, 22, 29),
+  labels = c("1-7","8-14","15-21","22+")
+)
+
+## Recoding embolie_pulmonaire$`Précisez autres motif principal d'hospitalisation`
+embolie_pulmonaire$`Précisez autres motif principal d'hospitalisation` <- embolie_pulmonaire$`Précisez autres motif principal d'hospitalisation` %>%
+  fct_recode(
+    "Hemoptysie" = "HEMOPTYSIE"
+  )
+```
+
+#Création des bases intermédiaires
+
+```{r}
+identifiant = c(1:232)
+ep_atcd_cardio <- as.data.frame(identifiant)
+
+ep_atcd_cardio <- ep_atcd_cardio %>%
+  left_join(
+    embolie_pulmonaire%>%
+      select(
+        ATCD_cardio = "ATCD Cardiovasculaires du patient :","identifiant",
+        "SCA ST+", 	"Type de SCA ST+/",	"Type de SCA ST+//Angioplastie",	"Type de SCA ST+//BASIC",	"Type de SCA ST+//Trombolyse",
+        "Type de SCA ST+//Non traité",	"SCA ST-", 	"Type de SCA ST-",	"Type de SCA ST-/Angioplastie",	"Type de SCA ST-/BASIC",	
+        "Type de SCA ST-/Non traité",	"Troubles conductifs",	"Type de troubles conductifs :",	"Les troubles conductifs sont:",
+        "Trouble du rythme",	"Type de trouble du rythme:",	"Traitement du trouble du rythme :",	
+        "Traitement du trouble du rythme :/Bêtabloquant",
+        "Traitement du trouble du rythme :/Amiodarone",	"Traitement du trouble du rythme :/Digoxine",	"Traitement du trouble du rythme :/Ica" ,
+        "Traitement du trouble du rythme :/Ivabradine",	"Traitement du trouble du rythme :/DAI",	"CMD",	"CMPP",	"CMR",	"DADV",	"CI Dilatée",
+        "ICFEP",	"Embolie pulmonaire :",	"Si oui traitement d'embolie pulmonaire:",	"Si oui traitement d'embolie pulmonaire:/Thrombolyse",	
+        "Si oui traitement d'embolie pulmonaire:/HNF",	"Si oui traitement d'embolie pulmonaire:/HBPM",	
+        "Si oui traitement d'embolie pulmonaire:/AVK",
+        "Si oui traitement d'embolie pulmonaire:/AOD",	"CPC",	"HTAP",	"HTA maligne",	"Encéphalopathie hypertensive",	"AVCI",	"AVCH",	
+        "Autres antécedents cordiovasculaires",	"precisez Autres antécedents cordiovasculaires:", "Décès"
+      ),
+    by = "identifiant"
+  )
+
+ep_atcd_cardio <- subset(ep_atcd_cardio, ATCD_cardio == "Oui")
+
+identifiant = c(1:232)
+ep_facteur_rm <- as.data.frame(identifiant)
+
+ep_facteur_rm <- ep_facteur_rm %>%
+  left_join(
+    embolie_pulmonaire%>%
+      select(
+        fact_rma = "Facteurs de risque modifiables d’athérosclérose :","identifiant",
+        "Tabagisme:",	"Actif", "Sevrage :",	"HTA :",	"Si Oui HTA:", "Diabète:",	"Si oui Diabète:",	"IRC",	
+        "Si Oui IRC",	"VIH",	"Si Oui VIH",
+        "Absence d’activité physique régulière","Obésité",	"Syndrome métabolique 1",	"Dyslipidémie",	"Alcool",	
+        "Accident cardiovasculaire précoce familial","Décès"
+      ),
+    by = "identifiant"
+  )
+
+ep_facteur_rm <- subset(ep_facteur_rm, fact_rma == "Oui")
+
+identifiant = c(1:232)
+ep_facteur_mtev <- as.data.frame(identifiant)
+
+ep_facteur_mtev <- ep_facteur_mtev %>%
+  left_join(
+    embolie_pulmonaire%>%
+      select(
+        facteur_mtev = "Le patient présent-il des facteurs de MTEV ?","identifiant",
+        "Insuffisance veineuse chronique",	"Immobilisation",	"Si Oui quelle immobilisation:",	"Chirurgie récente :",	"Si oui chirurgie récente",
+        "Si oui chirurgie récente /orthopédique",	"Si oui chirurgie récente /générale",	"Si oui chirurgie récente /obstétricale",
+        "Si oui chirurgie récente /urologique",	"Néoplasie évolutive"	,"Chimiothérapie"	,"Insuffisance cardiaque décompensée", 	
+        "Insuffisance respiratoire décompensée","BPCO",	"Grossesse", 	"Post-partum",	"VIH (Facteurs de MTEV)",  	"Si Oui VIH  (Facteurs de MTEV)",
+        "Long voyage récent (˃5h)", 	"Syndrome métabolique 2",	"HTA (Facteurs de MTEV)",	"Surpoids",	"KT central",	"Traitement par EPO",
+        "Œstroprogestatifs",	"Thrombophilie acquise (SAPL)",	"Thrombophilie constitutionnelle",	"Autres(Facteurs de MTEV )",
+        "Précisez Autres(Facteurs de MTEV ):","surpoids_bis", "obesite_bis", "age_bis","Drepanocytaire","Décès"
+      ),
+    by = "identifiant"
+  )
+
+
+ep_facteur_mtev <- subset(ep_facteur_mtev, facteur_mtev == "Oui")
+
+```
+
+#Etiquette de variables
+```{r }
+embolie_pulmonaire <- embolie_pulmonaire%>%
+  set_variable_labels(
+    age_class = "Tranche d'âge (ans)",
+    "Année :" = "Année",
+    "Age (ans):" = "Age (ans)",
+    age_bis = "Tranche d'âge",
+    "Etat général:" = "Etat général",	
+    "Conscience :" = "Conscience",	
+    "Sexe :" = "Sexe",	
+    "Nationnalité :" = "Nationnalité",
+    #"GCS",
+    IMC_bis = "IMC (Kg/m2)",	
+    "Etat de choc:" = "Etat de choc",	
+    "Collapsus cardiovasculaire :" = "Collapsus cardiovasculaire",
+    "Mort apparente :"= "Mort apparente",
+    #"Signes d’insuffisance cardiaque",
+    "Si oui quel signe d'insuffisance cardiaque:" =  "Si oui quel signe d'insuffisance cardiaque",
+    "9.Données ECG" = "Données ECG",
+    "Si données ECG disponible lesquelles :/Tachycardie" = "Tachycardie",    	
+    "Si données ECG disponible lesquelles :/Aspect S1Q3" = "Aspect S1Q3",    	
+    "Si données ECG disponible lesquelles :/DAD" = "DAD",	
+    "Si données ECG disponible lesquelles :/HAD" = "HAD",	
+    "Si données ECG disponible lesquelles :/HVD" = "HVD",	
+    "Onde T négatif :" = "Onde T négatif",	
+    "Territoire/antéroseptal" = "antéroseptal",
+    "Territoire/antéroseptal-apical" = "antéroseptal-apical",	
+    "Territoire/Inférieur" = "Inférieur",	
+    "Territoire/Latéral" = "Latéral",	
+    "Territoire/Antérieur étendu" = "Antérieur étendu",
+    TDR_effectue = "Réalisation du TDR", 
+    "TDR :/BBDC" = "BBDC", 	
+    "TDR :/BBDI" = "BBDI",	
+    "TDR :/TV" = "TV",	
+    "TDR :/ESV" = "ESV",	
+    "TDR :/ESA" = "ESA",	
+    "TDR :/ACFA" = "ACFA",	
+    "TDR :/FA" = "FA",	
+    "TDR :/BAV1" = "BAV1",	
+    "TDR :/BAV2" = "BAV2",	
+    "TDR :/BAV haut dégré" = "BAV haut dégré",	
+    "TDR :/BAV3" = "BAV3",
+    "ATCD Cardiovasculaires du patient :" = "ATCD Cardiovasculaires du patient", 
+    "Facteurs de risque modifiables d’athérosclérose :" = "Facteurs de risque modifiables d’athérosclérose",	
+    #"Le patient présent-il des facteurs de MTEV ?",
+    "Complications :/Hémodynamiques" = "Hémodynamiques",
+    "Complications :/Infarctus pulmonaire" = "Infarctus pulmonaire", 
+    "Complications :/Embolie paradoxale" = "Embolie paradoxale",	
+    "Complications :/Récidive" = "Récidive",
+    "Branches/Tap" = "Tap",	
+    "Branches/Principales" = "Principales",	
+    "Branches/Lobaires" = "Lobaires",	
+    "Branches/Segmentaires" = "Segmentaires",
+    troponineI = "Troponine I élevée",
+    presence_neoplasie = "Présence de néoplasie",
+    "Facteurs de risque modifiables d’athérosclérose :"="Facteurs de risque modifiables d’athérosclérose",
+    "Tabagisme:"="Tabagisme",	 
+    "Sevrage :"="Sevrage",	
+    "HTA :"="HTA",	
+    "Si Oui HTA:"="Si Oui HTA", 
+    "Diabète:"="Diabète",	
+    "Si oui Diabète:"="Si oui Diabète",	
+    "Le patient présent-il des facteurs de MTEV ?"="Le patient présent-il des facteurs de MTEV",
+    "Si Oui quelle immobilisation:"="Si Oui quelle immobilisation",	
+    "Chirurgie récente :"="Chirurgie récente",	
+    "Si oui chirurgie récente /orthopédique"="orthopédique",	
+    "Si oui chirurgie récente /générale"="générale",	
+    "Si oui chirurgie récente /obstétricale"="obstétricale",
+    "Si oui chirurgie récente /urologique"="urologique",	
+    "Si Oui VIH  (Facteurs de MTEV)"="Si Oui VIH (Facteurs de MTEV)",
+    "Autres(Facteurs de MTEV )"="Autres(Facteurs de MTEV)",
+    "Précisez Autres(Facteurs de MTEV ):"="Précisez Autres(Facteurs de MTEV )",
+    "Etat général:"="Etat général",	
+    "Conscience :"="Conscience",	
+   	"Etat de choc:"="Etat de choc",	
+    "Collapsus cardiovasculaire :"="Collapsus cardiovasculaire",	
+    "Mort apparente :"="Mort apparente", 	
+    "Si oui quel signe d'insuffisance cardiaque:"="Si oui quel signe d'insuffisance cardiaque",
+    "9.Données ECG"="Données ECG",	
+    "Si données ECG disponible lesquelles :/Tachycardie"="Tachycardie",    	
+    "Si données ECG disponible lesquelles :/Aspect S1Q3"="Aspect S1Q3",    	
+    "Si données ECG disponible lesquelles :/DAD"="DAD",	
+    "Si données ECG disponible lesquelles :/HAD"="HAD",	
+    "Si données ECG disponible lesquelles :/HVD"="HVD",	
+    "Onde T négatif :"="Onde T négatif",	
+    "Territoire/antéroseptal-apical"="antéroseptal-apical",	
+    "Territoire/Inférieur"="Inférieur",	
+    "Territoire/Latéral"="Latéral",	
+    "Territoire/Antérieur étendu"="Antérieur étendu",
+    "TDR :/BBDC"="BBDC", 	
+    "TDR :/BBDI"="BBDI",	
+    "TDR :/TV"="TV",	
+    "TDR :/ESV"="ESV",	
+    "TDR :/ESA"="ESA",	
+    "TDR :/ACFA"="ACFA",	
+    "TDR :/FA"="FA",	
+    "TDR :/BAV1"="BAV1",	
+    "TDR :/BAV2"="BAV2",	
+    "TDR :/BAV haut dégré"="BAV haut dégré",	
+    "TDR :/BAV3"="BAV3",
+   "Echodoppler cardiaque:"="Echodoppler cardiaque",	
+   "TAPSE(mm):"="TAPSE(mm)",
+   "Critères de reperfusion après thrombolyse /Disparition de la douleur"="Disparition de la douleu",  
+   "Critères de reperfusion après thrombolyse /Exacerbation de la douleur"="Exacerbation de la douleur",   	
+   "Critères de reperfusion après thrombolyse /Amélioration paramètres hémodynamiques"="Amélioration paramètres hémodynamiques", 
+   "Critères de reperfusion après thrombolyse /Amélioration paramètres ETT de dysfonction du VD"="Amélioration paramètres ETT de dysfonction du VD",	
+   "Critères de reperfusion après thrombolyse /Aucun"="Aucun",
+   "Complications :/Hémodynamiques"="Hémodynamiques",
+   "Complications :/Infarctus pulmonaire"="Infarctus pulmonaire", 
+   "Complications :/Embolie paradoxale"="Embolie paradoxale",	
+   "Complications :/Récidive"="Récidive",
+   "Branches/Tap"="Tap",	
+   "Branches/Principales"="Principales",	
+   "Branches/Lobaires"="Lobaires",	
+   "Branches/Segmentaires"="Segmentaires",
+   FEVG_bis = "FEVG (%)",
+   "15.Durée d’hospitalisation dans le service (jours):" = "Durée d'hospitalisation (jours)",
+   "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)" = "Motif PRINCIPAL d’hospitalisation",	
+   "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Dyspnée d’effort" = "Dyspnée d’effort",  	
+   "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Dyspnée de repos" = "Dyspnée de repos",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Douleur thoracique" = "Douleur thoracique",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Syncope-lipothymie" = "Syncope-lipothymie",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Palpitations" = "Palpitations",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Etat de choc" = "Etat de choc",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Vertiges" = "Vertiges",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Tuméfaction de membre" = "Tuméfaction de membre",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Autres" = "Autres",
+      "Précisez autres motif principal d'hospitalisation" = "Précisez autres",
+   Duree_hospi_class = "Durée d'hospitalisation (jours)"
+  )
+
+ep_atcd_cardio <- ep_atcd_cardio%>%
+  set_variable_labels(
+        "Type de SCA ST+/"="Type de SCA ST+",
+    "Type de SCA ST+//Angioplastie"="Angioplastie",
+    "Type de SCA ST+//BASIC"="BASIC",
+    "Type de SCA ST+//Trombolyse"="Trombolyse",
+    "Type de SCA ST+//Non traité"="Non traité",
+    "Type de SCA ST-/Angioplastie"="Angioplastie",
+    "Type de SCA ST-/BASIC"="BASIC",	
+    "Type de SCA ST-/Non traité"="Non traité",
+  	"Type de troubles conductifs :"="Type de troubles conductifs",
+    "Les troubles conductifs sont:"="Les troubles conductifs sont",
+    "Type de trouble du rythme:"="Type de trouble du rythme",
+    "Traitement du trouble du rythme :"="Traitement du trouble du rythme",	
+    "Traitement du trouble du rythme :/Bêtabloquant"="Bêtabloquant",
+    "Traitement du trouble du rythme :/Amiodarone"="Amiodarone",
+    "Traitement du trouble du rythme :/Digoxine"="Digoxine",
+    "Traitement du trouble du rythme :/Ica" ="Ica",
+    "Traitement du trouble du rythme :/Ivabradine"="Ivabradine",
+    "Traitement du trouble du rythme :/DAI"="DAI",
+    "Embolie pulmonaire :"="Embolie pulmonaire",
+    "Si oui traitement d'embolie pulmonaire:"="Si oui traitement d'embolie pulmonaire",
+    "Si oui traitement d'embolie pulmonaire:/Thrombolyse"="Thrombolyse",	
+    "Si oui traitement d'embolie pulmonaire:/HNF"="HNF",
+    "Si oui traitement d'embolie pulmonaire:/HBPM"="HBPM",	
+    "Si oui traitement d'embolie pulmonaire:/AVK"="AVK",
+    "Si oui traitement d'embolie pulmonaire:/AOD"="AOD",
+    "precisez Autres antécedents cordiovasculaires:"="precisez Autres antécedents cordiovasculaires"
+  )
+ep_facteur_rm <- ep_facteur_rm%>%
+  set_variable_labels(
+    "Tabagisme:" = "Tabagisme",	
+    "Sevrage :" = "Sevrage",	
+    "HTA :" = "HTA",
+    "Si Oui HTA:" = "Si Oui HTA", 
+    "Diabète:" = "Diabète",	
+    "Si oui Diabète:" = "Si oui Diabète",
+    "Syndrome métabolique 1" = "Syndrome métabolique"
+  )
+
+ep_facteur_mtev <-  ep_facteur_mtev%>%
+  set_variable_labels(
+    "Si Oui quelle immobilisation:" = "Si Oui quelle immobilisation",	
+    "Chirurgie récente :" = "Chirurgie récente",
+    "Si oui chirurgie récente /orthopédique" = "orthopédique",	
+    "Si oui chirurgie récente /générale" = "générale",	
+    "Si oui chirurgie récente /obstétricale" = "obstétricale",
+    "Si oui chirurgie récente /urologique" = "urologique",
+    "VIH (Facteurs de MTEV)" = "VIH",  	
+    "Si Oui VIH  (Facteurs de MTEV)" = "Si Oui VIH",
+    "Syndrome métabolique 2" = "Syndrome métabolique",	
+    "HTA (Facteurs de MTEV)" = "HTA",
+    "Autres(Facteurs de MTEV )" = "Autres",
+    "Précisez Autres(Facteurs de MTEV ):" = "Précisez Autres"
+  )
+```
+
+#Caracteristiques socio-démographiques 1
+##Univare
+```{r message = FALSE}
+embolie_pulmonaire%>%
+  select("Année :","Age (ans):", "age_class",	#"Mois:",	
+         	"Sexe :",	"Nationnalité :","Précisez autre nationnalité","15.Durée d’hospitalisation dans le service (jours):", "Duree_hospi_class")%>%
+  tbl_summary(
+    #by = "Sexe :",
+    digits = all_categorical()~c(0,1),
+    type = c("Age (ans):","15.Durée d’hospitalisation dans le service (jours):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+##Bivariée
+```{r message = FALSE}
+embolie_pulmonaire%>%
+  select("Année :","Age (ans):", "age_class",	#"Mois:",	
+         	"Sexe :",	"Nationnalité :","Précisez autre nationnalité","15.Durée d’hospitalisation dans le service (jours):", "Duree_hospi_class")%>%
+  tbl_summary(
+    by = "Sexe :",
+    digits = all_categorical()~c(0,1),
+    type = c("Age (ans):","15.Durée d’hospitalisation dans le service (jours):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+
+##Age en fonction du sexe
+```{r message = FALSE}
+embolie_pulmonaire%>%
+  select("Sexe :","Décès","Année :")%>%
+  tbl_summary(
+    by = "Décès",
+    digits = all_categorical()~c(0,1),
+    percent = "row",
+    #type = c("Age")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+
+#Répartition des antécédents cardiovasculaires, des facteurs de risque d’athérosclérose modifiables et de MTEV chez les patients 
+```{r message = FALSE}
+embolie_pulmonaire%>%
+  select("ATCD Cardiovasculaires du patient :", "Facteurs de risque modifiables d’athérosclérose :",	"Le patient présent-il des facteurs de MTEV ?", "Décès")%>%
+  tbl_summary(
+    by = "Décès",
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+
+##Répartition des antécédents cardiovasculaires
+
+```{r message = FALSE}
+
+ep_atcd_cardio%>%
+    select(
+      "SCA ST+", 	"Type de SCA ST+/",	"Type de SCA ST+//Angioplastie",	"Type de SCA ST+//BASIC",	"Type de SCA ST+//Trombolyse",
+      "Type de SCA ST+//Non traité",	"SCA ST-", 	"Type de SCA ST-",	"Type de SCA ST-/Angioplastie",	"Type de SCA ST-/BASIC",	
+      "Type de SCA ST-/Non traité",	"Troubles conductifs",	"Type de troubles conductifs :",	"Les troubles conductifs sont:",
+      "Trouble du rythme",	"Type de trouble du rythme:",	"Traitement du trouble du rythme :",	"Traitement du trouble du rythme :/Bêtabloquant",
+      "Traitement du trouble du rythme :/Amiodarone",	"Traitement du trouble du rythme :/Digoxine",	"Traitement du trouble du rythme :/Ica" ,
+      "Traitement du trouble du rythme :/Ivabradine",	"Traitement du trouble du rythme :/DAI",	"CMD",	"CMPP",	"CMR",	"DADV",	"CI Dilatée",
+      "ICFEP",	"Embolie pulmonaire :",	"Si oui traitement d'embolie pulmonaire:",	"Si oui traitement d'embolie pulmonaire:/Thrombolyse",	
+      "Si oui traitement d'embolie pulmonaire:/HNF",	"Si oui traitement d'embolie pulmonaire:/HBPM",	"Si oui traitement d'embolie pulmonaire:/AVK",
+      "Si oui traitement d'embolie pulmonaire:/AOD",	"CPC",	"HTAP",	"HTA maligne",	"Encéphalopathie hypertensive",	"AVCI",	"AVCH",	
+      "Autres antécedents cordiovasculaires",	"precisez Autres antécedents cordiovasculaires:", "Décès"
+      
+    )%>%
+  tbl_summary(
+    by = "Décès",
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+##Facteurs de risque modifiables d’athérosclérose :
+```{r message = FALSE}
+ep_facteur_rm%>%
+    select(
+      "Tabagisme:",	"Actif", "Sevrage :",	"HTA :",	"Si Oui HTA:", "Diabète:",	"Si oui Diabète:",	"IRC",	
+        "Si Oui IRC",	"VIH",	"Si Oui VIH",
+        "Absence d’activité physique régulière","Obésité",	"Syndrome métabolique 1",	"Dyslipidémie",	"Alcool",	
+        "Accident cardiovasculaire précoce familial", "Décès"
+      
+    )%>%
+  tbl_summary(
+    by = "Décès",
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+
+##Le patient présent-il des facteurs de MTEV ?
+
+```{r message = FALSE}
+ep_facteur_mtev%>%
+    select(
+      "Insuffisance veineuse chronique",	"Immobilisation",	"Si Oui quelle immobilisation:",	"Chirurgie récente :",	"Si oui chirurgie récente",
+        "Si oui chirurgie récente /orthopédique",	"Si oui chirurgie récente /générale",	"Si oui chirurgie récente /obstétricale",
+        "Si oui chirurgie récente /urologique",	"Néoplasie évolutive"	,"Chimiothérapie"	,"Insuffisance cardiaque décompensée", 	
+        "Insuffisance respiratoire décompensée","BPCO",	"Grossesse", 	"Post-partum",	"VIH (Facteurs de MTEV)",  	"Si Oui VIH  (Facteurs de MTEV)",
+        "Long voyage récent (˃5h)", 	"Syndrome métabolique 2",	"HTA (Facteurs de MTEV)",	surpoids_bis, obesite_bis, age_bis,	"KT central",	"Traitement par EPO",
+        "Œstroprogestatifs",	"Thrombophilie acquise (SAPL)",	"Thrombophilie constitutionnelle",	
+        "Drepanocytaire","Autres(Facteurs de MTEV )","Précisez Autres(Facteurs de MTEV ):", "Décès"
+    )%>%
+  tbl_summary(
+    by = "Décès",
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+
+
+
+#Motif d'hospitalisation
+```{r message = FALSE}
+embolie_pulmonaire%>%
+    select(
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Dyspnée d’effort",  	"4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Dyspnée de repos",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Douleur thoracique",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Syncope-lipothymie",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Palpitations",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Etat de choc",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Vertiges",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Tuméfaction de membre",
+      "4.Motif PRINCIPAL d’hospitalisation (au plus deux réponses possibles)/Autres",
+      "Précisez autres motif principal d'hospitalisation"
+    )%>%
+  tbl_summary(
+    #by = "Décès",
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+
+#Gravité de l'embolie et localisation
+```{r message = FALSE}
+embolie_pulmonaire%>%
+    select(
+      "Gravité de l'embolie pulmonaire", "Décès"
+    )%>%
+  tbl_summary(
+    by = "Décès",
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+```
+
+#Répartition des données de l’examen physique
+
+```{r message = FALSE}
+embolie_pulmonaire%>%
+    select("Etat général:",	"Conscience :",	"GCS",IMC_bis,	"Etat de choc:",	"Collapsus cardiovasculaire :",	
+           "Mort apparente :",	"Signes d’insuffisance cardiaque", 	"Si oui quel signe d'insuffisance cardiaque:"
+           )%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+#Répartition des patients en fonction des anomalies électriques,des éléments échographiques et des données biologiques
+
+##Répartition des patients en fonction des anomalies électriques
+```{r message = FALSE}
+embolie_pulmonaire%>%
+    select("9.Données ECG",	"Si données ECG disponible lesquelles :/Tachycardie",    	
+           "Si données ECG disponible lesquelles :/Aspect S1Q3",    	
+           "Si données ECG disponible lesquelles :/DAD",	"Si données ECG disponible lesquelles :/HAD",	
+           "Si données ECG disponible lesquelles :/HVD",	"Onde T négatif :",	"Territoire/antéroseptal",
+           "Territoire/antéroseptal-apical",	"Territoire/Inférieur",	"Territoire/Latéral",	"Territoire/Antérieur étendu",
+           TDR_effectue, "TDR :/BBDC", 	"TDR :/BBDI",	"TDR :/TV",	"TDR :/ESV",	"TDR :/ESA",	"TDR :/ACFA",	"TDR :/FA",	
+           "TDR :/BAV1",	"TDR :/BAV2",	"TDR :/BAV haut dégré",	"TDR :/BAV3"
+           )%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+##Répartition des patients en fonction des éléments échographiques
+```{r message = FALSE}
+
+embolie_pulmonaire%>%
+    select(
+      "Echodoppler cardiaque:",	FEVG_bis,	PAPS_bis,	"VG dilaté",	"VD dilaté",	"Rapport VD/VG>0.9",	"Septum paradoxal",
+           "HTAP_1","PAPS(mmHg)",	"Epanchement péricardique", 	"Thrombus VD/VG",	"Autres résultats",	"Précisez autres résultats"
+           )%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+##Répartition des patients en fonction des données biologiques
+```{r message = FALSE}
+  
+embolie_pulmonaire%>%
+    select(PHR_bis, 	Clairance_bis,"D-Dimères",DDimeres_bis,	 "NT-pro BNP",	"valeurs NT-pro BNP (ng/l)",
+           "Troponine I", troponineI
+           )%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("PHR")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous()~c("{median} [{p25}-{p75}]")
+    )
+  )
+```
+#Update
+##Patients ayant eu complication et décès
+
+```{r message = FALSE}
+## Recoding embolie_pulmonaire$`Forme Grave`
+embolie_pulmonaire$`Complications :/Rythmiques` <- embolie_pulmonaire$`Complications :/Rythmiques` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+embolie_pulmonaire$`Complications :/Hémodynamiques` <- embolie_pulmonaire$`Complications :/Hémodynamiques` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+embolie_pulmonaire$`Complications :/Infarctus pulmonaire` <- embolie_pulmonaire$`Complications :/Infarctus pulmonaire` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+#Complications :/Rythmiques	Complications :/Hémodynamiques	Complications :/Infarctus pulmonaire 
+embolie_pulmonaire%>%
+    select("Complications :/Rythmiques",	"Complications :/Hémodynamiques",	"Complications :/Infarctus pulmonaire", 
+            "Décès"
+           )%>%
+  tbl_summary(
+    by = 'Décès',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+
+```{r}
+## Recoding embolie_pulmonaire$`Forme Grave`
+embolie_pulmonaire$`Forme Grave` <- embolie_pulmonaire$`Forme Grave` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+embolie_pulmonaire$`Intermédiaire haut` <- embolie_pulmonaire$`Intermédiaire haut` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+embolie_pulmonaire$`Grave+Intermediaire` <- embolie_pulmonaire$`Grave+Intermediaire` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+embolie_pulmonaire$`Thrombus_VD_VG_spO2` <- embolie_pulmonaire$`Thrombus_VD_VG_spO2` %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+
+```
+
+##Formes graves crois décès
+```{r message = FALSE}
+
+embolie_pulmonaire%>%
+    select("Forme Grave","Intermédiaire haut","Grave+Intermediaire", "Décès",thrombolyse
+           )%>%
+  tbl_summary(
+    by = 'Décès',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+
+#Forme grave + thrombolyse
+```{r message = FALSE}
+
+embolie_pulmonaire%>%
+    select("Forme Grave","Intermédiaire haut","Grave+Intermediaire",thrombolyse
+           )%>%
+  tbl_summary(
+    by = 'thrombolyse',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+##Thrombus VD/VG, Thrombus_VD_VG_spO2,
+
+##Patients thrombolysé
+
+```{r message = FALSE}
+
+embolie_pulmonaire%>%
+    select("Thrombus_VD_VG_spO2", "thrombolyse"
+           )%>%
+  tbl_summary(
+    by = 'thrombolyse',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+#Mortalité en fonction du sexe et des facteurs de mauvais pronostic étudiés
+
+##Global
+```{r message = FALSE}
+
+embolie_pulmonaire%>%
+    select(Score_de_PESIs,dysfonction_VD, troponineI,"valeurs NT-pro BNP (ng/l)",hyponatremie, DDimeres_bis, "Thrombose veineuse profonde associée",
+           "Thrombus VD/VG",Clairance_bis,PHR_bis, presence_neoplasie,"Décès", age_bis,	"Localisation", "Branches/Tap",	"Branches/Principales",	"Branches/Lobaires",	"Branches/Segmentaires"
+           )%>%
+  tbl_summary(
+    by = 'Décès',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+
+##Chez les Hommes
+
+```{r message = FALSE}
+
+
+
+em_homme = subset(embolie_pulmonaire, sexe =="Homme")
+
+em_femme = subset(embolie_pulmonaire,sexe== "Femme")
+
+em_homme%>%
+    select(Score_de_PESIs,dysfonction_VD, troponineI,"valeurs NT-pro BNP (ng/l)",hyponatremie, DDimeres_bis, "Thrombose veineuse profonde associée",
+           "Thrombus VD/VG",Clairance_bis,PHR_bis, presence_neoplasie,"Décès", age_bis,	"Localisation","Branches/Tap",	"Branches/Principales",	"Branches/Lobaires",	"Branches/Segmentaires"
+           )%>%
+  tbl_summary(
+    by = 'Décès',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+
+##Chez les femmes
+```{r message = FALSE}
+
+em_femme%>%
+    select(age_bis,Score_de_PESIs,dysfonction_VD, troponineI,"valeurs NT-pro BNP (ng/l)",hyponatremie, DDimeres_bis, "Thrombose veineuse profonde associée",
+           "Thrombus VD/VG",Clairance_bis,PHR_bis, presence_neoplasie,"Décès",	"Localisation","Branches/Tap",	"Branches/Principales",	"Branches/Lobaires",	"Branches/Segmentaires"
+           )%>%
+  tbl_summary(
+    by = 'Décès',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_labels()%>%
+  bold_p(t=0.05)%>%
+  add_overall(last= T)
+
+```
+#Figures
+##Répartition des critères de reperfusion après thrombolyse 
+```{r message = FALSE}
+embolie_pulmonaire%>%
+    select("Critères de reperfusion après thrombolyse /Disparition de la douleur",  "Critères de reperfusion après thrombolyse /Exacerbation de la douleur",   	
+           "Critères de reperfusion après thrombolyse /Amélioration paramètres hémodynamiques", 
+           "Critères de reperfusion après thrombolyse /Amélioration paramètres ETT de dysfonction du VD",	"Critères de reperfusion après thrombolyse /Aucun")%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+##Répartition des causes de décès
+```{r message = FALSE}
+embolie_pulmonaire%>%
+    select("Décès","Causes du décès")%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+##Répartition des complications dans le service en cours d’hospitalisation 
+```{r message = FALSE}
+
+
+embolie_pulmonaire%>%
+    select("Complications :/Hémodynamiques","Complications :/Infarctus pulmonaire", "Complications :/Embolie paradoxale",	"Complications :/Récidive","Complications :/Rythmiques","Autres complications dans le service"  ,"Précisez autres complications dans le service")%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+##Branches/Tap	Branches/Principales	Branches/Lobaires	Branches/Segmentaires
+
+```{r message = FALSE}
+
+
+embolie_pulmonaire%>%
+    select("Branches/Tap",	"Branches/Principales",	"Branches/Lobaires",	"Branches/Segmentaires")%>%
+  tbl_summary(
+    #by = 'CHU :',
+    digits = all_categorical()~c(0,1),
+    #type = c("Age (ans):")~"continuous2",
+    statistic = list(
+      all_categorical()~c("{n} ({p})"),
+      all_continuous2()~c("{median} [{p25}-{p75}]","{mean} ({sd})", "{min}-{max}")
+    )
+  )
+```
+
+
+#Modèle de régression logistique
+##Recodage et etiquettage
+```{r}
+
+identifiant = c(1:232)
+em_regression <- as.data.frame(identifiant)
+em_regression <- em_regression %>%
+  left_join(
+    embolie_pulmonaire%>%
+      select(
+        "identifiant", deces = "Décès", dysfonction_VD, rapport_VD_VG ="Rapport VD/VG>0.9",troponineI, TVP_concomitante = "Thrombose veineuse profonde associée",hyponatremie,DDimeres_bis,Clairance_bis,PHR,presence_neoplasie,age_bis,sexe = "Sexe :", Score_de_PESIs,
+        score_pesis = "Score de PESI simplifié",gravite = "Gravité de l'embolie pulmonaire",	localisation = "Localisation",thrombolyse
+      ),
+    by = "identifiant"
+  )
+em_regression$rapport_VD_VG <- em_regression$rapport_VD_VG%>%
+  to_factor()
+em_regression$TVP_concomitante <- em_regression$TVP_concomitante%>%
+  to_factor()
+em_regression$sexe <- em_regression$sexe%>%
+  to_factor()
+## Cutting em_femme$PHR into em_femme$PHR_bis
+em_regression$PHR_bis_1 <- cut(em_regression$PHR,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 19, 100),
+  labels = c("<19","19+")
+)
+## Recoding em_regression$DDimeres_bis into em_regression$DDimeres_bis_1
+em_regression$DDimeres_bis_1 <- em_regression$DDimeres_bis %>%
+  fct_recode(
+    "<=3500" = "<1500",
+    "<=3500" = "1500-3500",
+    ">3500" = "3501-5500",
+    ">3500" = ">5500"
+  )
+em_regression$DDimeres_bis_3 <- em_regression$DDimeres_bis %>%
+  fct_recode(
+    "<1500" = "<1500",
+    ">=1500" = "1500-3500",
+    ">=1500" = "3501-5500",
+    ">=1500" = ">5500"
+  )
+
+em_regression$DDimeres_bis_2 <- em_regression$DDimeres_bis %>%
+  fct_recode(
+    "<1500" = "<1500",
+    "1500+" = "1500-3500",
+    "1500+" = "3501-5500",
+    "1500+" = ">5500"
+  )
+## Recoding em_regression$deces
+em_regression$deces <- em_regression$deces %>%
+  fct_recode(
+    "0" = "Non",
+    "1" = "Oui"
+  )
+## Recoding em_regression$hyponatremie
+em_regression$hyponatremie <- em_regression$hyponatremie %>%
+  fct_recode(
+    "<135" = "<130",
+    "<135" = "130-135"
+  )
+## Recoding em_regression$score_pesis into em_regression$score_pesis_bis
+em_regression$score_pesis_bis <- em_regression$score_pesis %>%
+  fct_recode(
+    "2+" = ">=3",
+    "<2" = "0",
+    "<2" = "1",
+    "2+" = "2"
+  )%>%fct_relevel("<2")
+## Cutting em_regression$PHR into em_regression$PHR_bis
+em_regression$PHR_bis <- cut(em_regression$PHR,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 17.5, 113)
+)
+## Cutting em_regression$PHR into em_regression$PHR_rec
+em_regression$PHR_bis_2 <- cut(em_regression$PHR,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(2.1, 24.6, 113)
+)
+## Reordering em_regression$Clairance_bis
+em_regression$Clairance_bis <- em_regression$Clairance_bis %>%
+  fct_relevel(
+    "60+", "<60"
+  )
+
+## Reordering em_regression$dysfonction_VD
+em_regression$dysfonction_VD <- em_regression$dysfonction_VD %>%
+  fct_relevel(
+    "16+", "<16"
+  )
+## Recoding em_regression$gravite into em_regression$gravite_bis_1
+em_regression$gravite_bis_1 <- em_regression$gravite %>%
+  fct_recode(
+    "Intermédiaire/Grave" = "Grave",
+    "Intermédiaire/Grave" = "Intermédiaire bas",
+    "Intermédiaire/Grave" = "Intermédiaire haut"
+  )
+
+## Recoding em_regression$gravite into em_regression$gravite_bis_2
+em_regression$gravite_bis_2 <- em_regression$gravite %>%
+  fct_recode(
+    "Bas risque / Intermédiaire" = "Bas risque",
+    "Bas risque / Intermédiaire" = "Intermédiaire bas",
+    "Bas risque / Intermédiaire" = "Intermédiaire haut"
+  )
+## Recoding em_regression$rapport_VD_VG
+em_regression$rapport_VD_VG <- em_regression$rapport_VD_VG %>%
+  fct_explicit_na("Non")
+em_regression <- em_regression%>%
+  set_variable_labels(
+    "sexe" = "Sexe",
+    "age_bis" = "Âge élevé",
+    "dysfonction_VD" = "Dysfonction du VD",
+    "rapport_VD_VG" = "Rapport VD/VG > 0,9",
+    "troponineI" = "Troponine I",
+    "TVP_concomitante" = "TVP concomitante",
+    "hyponatremie" = "Hyponatremie",
+    "Clairance_bis" = "Insuffisance rénale aiguë ",
+    "PHR_bis_1" = "Tranche de PHR 1",
+    "Score_de_PESIs" ="Score de PESIs",
+    "score_pesis_bis" ="Score de PESIs bis", 
+    "PHR_bis"= "Tranche de PHR 3", 
+    "PHR_bis_2" = "Tranche de PHR 2",
+    "DDimeres_bis_1" = "D-Dimères 1", 
+    "localisation" = "Localisation",
+    "DDimeres_bis_3"  = "D-Dimères 3",
+    "presence_neoplasie" = "Présence néoplasie",
+    gravite_bis_2 = "Gravité de l'embolie pulmonaire"
+  )
+```
+
+
+
+
+
+```{r, echo=FALSE}
+
+dep <- "deces" 
+
+#model initial----
+vars <- c("sexe","age_bis","dysfonction_VD","rapport_VD_VG",#"troponineI"
+          "TVP_concomitante","hyponatremie","Clairance_bis","PHR_bis_1","Score_de_PESIs","score_pesis_bis", "PHR_bis", "PHR_bis_2"
+          ,"DDimeres_bis_1", "localisation" , "gravite_bis_2","thrombolyse" #"gravite_bis_1" ,"gravite_bis_2" #,"DDimeres_bis_3" ,#"presence_neoplasie"
+          )
+tab <- finalfit(em_regression, dep, vars)
+knitr::kable(tab, row.names = FALSE)
+#model final----
+vars <- c("age_bis","rapport_VD_VG", "score_pesis_bis","thrombolyse")
+tab <- finalfit(em_regression, dep, vars)
+knitr::kable(tab, row.names = FALSE)
+#vars_multi <- c("Age","Dejaeuunrapportsexuel")
+#tab <- finalfit(em_regression, dep, vars, explanatory_multi = vars_multi)
+#knitr::kable(tab, row.names = FALSE) 
+```
+
+#Tableau modele finale
+```{r}
+
+modele_univariable <- em_regression %>%
+  select(deces,"sexe","age_bis","dysfonction_VD","rapport_VD_VG",#"troponineI",
+          "TVP_concomitante",#"hyponatremie",
+         "Clairance_bis","PHR_bis","score_pesis_bis", "localisation", "DDimeres_bis_1", "gravite_bis_2","thrombolyse"
+         
+         ) %>%
+  tbl_uvregression(
+    method = glm,
+    y = deces,
+    method.args = list(family = binomial),
+    exponentiate = T,
+    add_estimate_to_reference_rows = T,
+    pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ","),
+    hide_n = T) %>%
+  #add_global_p(keep = T)%>%
+  bold_p(t=0.05) 
+
+modele_multivariable <- glm (deces ~ age_bis + score_pesis_bis + gravite_bis_2 + TVP_concomitante + sexe+ thrombolyse, 
+                             data = em_regression,
+                             family = binomial) %>%
+  tbl_regression(exponentiate = T,
+                 add_estimate_to_reference_rows = T,
+                 pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+  ) %>%
+  #add_global_p(keep = T)%>%
+  bold_p(t=0.05)
+  
+
+modele_final <- tbl_merge(
+  list(modele_univariable, modele_multivariable),
+  tab_spanner = c("**Modèle univariable**","**Modèle multivariable**")
+)  
+
+modele_final
+```
+
+
+```{r}
+# modele_multivariable <- glm (deces ~ sexe+age_bis + score_pesis_bis+TVP_concomitante+ rapport_VD_VG + Clairance_bis, data = em_regression,family = binomial)
+# library(performance)
+# performance_hosmer(modele_multivariable_simple)
+# 
+# library(lmtest)
+# modele_multivariable_Ok <- glm (deces ~ age_bis + score_pesis_bis+TVP_concomitante, data = em_regression,family = binomial)
+# 
+# modele_multivariable_simple <- glm (deces ~ age_bis + score_pesis_bis+gravite_bis_2+TVP_concomitante , data = em_regression,family = binomial)
+# 
+# modele_multivariable_complexe <- glm (deces ~ age_bis + score_pesis_bis+gravite_bis_2+TVP_concomitante+Clairance_bis, data = em_regression,family = binomial)
+# mod1 <- glm (deces ~ sexe+age_bis + score_pesis_bis+ rapport_VD_VG +gravite_bis_2+sexe+ TVP_concomitante+Clairance_bis, data = em_regression,family = binomial)
+# 
+# #age_bis + score_pesis_bis+ rapport_VD_VG +gravite_bis_2+sexe+ TVP_concomitante+Clairance_bis
+# 
+# 
+# 
+# lrtest(modele_multivariable_simple, modele_multivariable_complexe)
+# mod1%>%tbl_regression(exponentiate = T,
+#                  add_estimate_to_reference_rows = T,
+#                  pvalue_fun = scales::label_pvalue(accuracy = .001, decimal.mark = ",")
+#   ) %>%
+#   #add_global_p(keep = T)%>%
+#   bold_p(t=0.05)
+```
+

@@ -1,0 +1,781 @@
+---
+title: "Rapport d'analyse: ETUDE COMPARATIVE MORBI-MORTALITE DES ENFANTS DE 0 à 15
+  ANS HOSPITALISES EN PEDIATRIE A L’HOPITAL DE BE ENTRE 2005 ET 2021"
+author: "KYD"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+#Chargement des donnees  et des packages
+```{r echo=FALSE}
+library(tidyverse)
+library(labelled)
+library(questionr)
+library(gtsummary)
+library(readxl)
+library(GGally)
+library(finalfit)
+
+theme_gtsummary_language("fr", decimal.mark = ",", big.mark = " ")
+
+
+pediatrie <- read_excel("KYD_ETUDE_COMPARATIVE_MORBI-MORTALITE_DES_ENFANTS_DE_0_A_15_ANS_HOSPITALISES_EN_PEDIATRIE_A_LHOPITAL_DE_BE_17092022.xlsx", 
+    sheet = "ETUDE COMPARATIVE MORBI-MORT...")
+
+```
+#Recodage de variable
+```{r}
+## Recodage de pediatrie$age_jours_bis en pediatrie$age_class_bis
+pediatrie$age_class_bis <- cut(pediatrie$age_jours_bis,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 29, 913, 1826, 3651, 5475),
+  labels = c("0-28 jours","1 mois - moins de 2 ans et démi","3-4","5-9","10-15")
+)
+## Recodage de pediatrie$age_class_bis en pediatrie$age_class
+pediatrie$age_class <- pediatrie$age_class_bis %>%
+  fct_recode(
+    "0-2.5" = "0-28 jours",
+    "0-2.5" = "1 mois - moins de 2 ans et démi"
+  )
+
+## Recodage de pediatrie$age_jours_bis en pediatrie$age_class_bis_2
+pediatrie$age_class_bis_2 <- cut(pediatrie$age_jours_bis,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 730, 5475),
+  labels = c("<2","2+")
+)
+## Recodage de pediatrie$age_jour en pediatrie$age_jour
+pediatrie$age_class_bis_3 <- cut(pediatrie$age_jour,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(0, 1, 28),
+  labels = c("0","1-28")
+)
+## Recodage de pediatrie$`Antécédent de vaccination`
+pediatrie$`Antécédent de vaccination` <- pediatrie$`Antécédent de vaccination` %>%
+  fct_recode(
+    "Indéterminée" = "indéterminée",
+    "Irrégulière" = "irrégulière",
+    "Non faite" = "non faite"
+  ) %>%
+  fct_explicit_na("Indéterminée")
+## Recodage de pediatrie$`21. Mode de sortie`
+pediatrie$`21. Mode de sortie` <- pediatrie$`21. Mode de sortie` %>%
+  fct_explicit_na("guérison")
+## Recodage de pediatrie$`5. Lieu de provenance`
+pediatrie$`5. Lieu de provenance` <- pediatrie$`5. Lieu de provenance` %>%
+  fct_recode(
+    "Autres" = "inconnu"
+  ) %>%
+  fct_explicit_na("Autres")
+
+pediatrie$`12.TDR` <- pediatrie$`12.TDR` %>%
+  fct_explicit_na("non fait")
+
+pediatrie$`13. GE` <- pediatrie$`13. GE` %>%
+  fct_explicit_na("non faite")
+## Réordonnancement de pediatrie$mois_admission
+pediatrie$mois_admission <- pediatrie$mois_admission %>%
+  fct_relevel(
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet",
+    "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+  )
+## Recodage de pediatrie$`8. Etat nutritionnel`
+pediatrie$`8. Etat nutritionnel` <- pediatrie$`8. Etat nutritionnel` %>%
+  fct_explicit_na("Normal")
+
+## Recodage de pediatrie$mode_sortie en pediatrie$deces
+pediatrie$deces <- pediatrie$mode_sortie %>%
+  fct_recode(
+    "Non" = "complication",
+    "Oui" = "décès",
+    "Non" = "décharge",
+    "Non" = "évadé",
+    "Non" = "guérison",
+    "Non" = "référé"
+  ) %>%
+  fct_explicit_na("Non")
+
+## Recodage de pediatrie$duree_hospitalisation en pediatrie$duree_hospitalisation_bis
+pediatrie$duree_hospitalisation_bis <- cut(pediatrie$duree_hospitalisation,
+  include.lowest = TRUE,
+  right = FALSE,
+  dig.lab = 4,
+  breaks = c(1, 7, 13, 32),
+  labels = c("1-6","7-12",">12")
+)
+## Recodage de pediatrie_nouveau_ne$EAI en pediatrie_nouveau_ne$EAI_bis
+pediatrie$EAI_bis <- pediatrie$EAI %>%
+  as.character() %>%
+  fct_recode(
+    "Non" = "0",
+    "Oui" = "1"
+  )
+```
+#Etiquette de variables
+```{r etiquette}
+pediatrie<- pediatrie%>%
+  set_variable_labels(
+    age_annee = "Age (ans)",
+    age_class_bis = "Tranches d'âge (ans)",
+    age_class = "Tranches d'âge (ans)",
+    age_class_bis_2 = "Tranches d'âge (ans)",
+    age_class_bis_3 = "Tranches d'âge (jours)",
+    '3. Sexe' = "Sexe",
+    '5. Lieu de provenance' = 'Lieu de provenance',
+    '6. Motif d’admission /Fièvre' = "Fièvre",	
+    '6. Motif d’admission /douleur' = "Douleur",
+    '6. Motif d’admission /vomissement' = "Vomissement",
+    '6. Motif d’admission /Pâleur' ="Pâleur",
+    '6. Motif d’admission /diarrhée' ="Diarrhée",
+    '6. Motif d’admission /convulsion' ="Convulsion",	
+    '6. Motif d’admission /toux' ="Toux", 	
+    '6. Motif d’admission /dyspnée' ="Dyspnée"	,
+    '6. Motif d’admission /hémoglobinurie' ="Hémoglobinurie",
+    '6. Motif d’admission /Pleurs incessants' ="Pleurs incessants",	
+    '6. Motif d’admission /Amaigrissement' ="Amaigrissement",
+    '6. Motif d’admission /LA inexistant' ="LA inexistant",
+    '6. Motif d’admission /LA fétide' ="LA fétide",
+    '6. Motif d’admission /LA méconial' ="LA méconial",
+    '6. Motif d’admission /LA purée de pois' ="LA purée de pois",	
+    '6. Motif d’admission /Asthénie' ="Asthénie",
+    '6. Motif d’admission /Refus de téter' ="Refus de téter",
+    '6. Motif d’admission /Irritabilité' ="Irritabilité",
+    '6. Motif d’admission /Altération de la conscience' ="Altération de la conscience"	,
+    '6. Motif d’admission /ictère' ="ictère"	,
+    '6. Motif d’admission /Hypotrophie' ="Hypotrophie",
+    '6. Motif d’admission /Macrosomie' ="Macrosomie",
+    '6. Motif d’admission /Prématurité' ="Prématurité",
+    '6. Motif d’admission /Post maturité' ="Post maturité",
+    '6. Motif d’admission /Rupture prolongée des membranes' ="Rupture prolongée des membranes",
+    '6. Motif d’admission /Fièvre maternelle' ="Fièvre maternelle",
+    '6. Motif d’admission /autres' ="Autres",
+    "Autres motif d'admission" ="Autres(precisez)",
+    'Antécédent de vaccination' ="Couverture vaccinale",  
+    '11. Hb' = "Taux d'hémoglobine",
+    '21. Mode de sortie' = 'Mode de sortie',
+    'Diagnostic définitif /Paludisme grave' = "Paludisme grave",
+    'Diagnostic définitif /Infection respiratoire aiguë' = "Infection respiratoire aiguë", 	
+    'Diagnostic définitif /Sd infectieux non documenté' = "Sd infectieux non documenté",
+    'Diagnostic définitif / MPE' = "MPE",
+    'Diagnostic définitif / Salmonellose' = "Salmonellose",
+    'Diagnostic définitif /Septicémie néonatale' = "Septicémie néonatale",
+    'Diagnostic définitif /Septicémie du NRS et plus' = "Septicémie du NRS et plus",
+    'Diagnostic définitif /Autre germe' = "Autre germe",
+    'Diagnostic définitif /Leucémie' = "Leucémie",
+    'Diagnostic définitif /Lymphome' = "Lymphome",
+    'Diagnostic définitif /EAI' = "EAI",
+    'Diagnostic définitif /Fièvre éruptive' = "Fièvre éruptive",
+    'Diagnostic définitif /Infection digestive d’étiologie indéterminée' = "Infection digestive d’étiologie indéterminée",
+    'Diagnostic définitif /Fièvre au long cours non documentée' = "Fièvre au long cours non documentée",
+    'Diagnostic définitif /Anémie d’étiologie indéterminée' = "Anémie d’étiologie indéterminée",
+    'Diagnostic définitif /Infection urinaire' = "Infection urinaire",
+    'Diagnostic définitif /Autres' = "Autres",
+    'Diagnostic définitif /Indéterminé' = "Indéterminé",
+    'Paludisme grave (definitif)/anémie' = "anémie",
+    'Paludisme grave (definitif)/convulsions' = "convulsions",
+    'Paludisme grave (definitif)/coma' = "coma",
+    'Paludisme grave (definitif)/Ictère' = "Ictère",
+    'Paludisme grave (definitif)/Troubles de comportement' = "Troubles de comportement",
+    'Paludisme grave (definitif)/prostration' = "prostration",
+    'Paludisme grave (definitif)/hypoglycémie' = "hypoglycémie",
+    'Paludisme grave (definitif)/Insuffisance rénale' = "Insuffisance rénale",
+    'Paludisme grave (definitif)/collapsus cardiovasculaire' = "collapsus cardiovasculaire",
+    'Paludisme grave (definitif)/syndrome hémorragique' = "syndrome hémorragique",
+    'Paludisme grave (definitif)/Œdème pulmonaire' = "Œdème pulmonaire",
+    'Paludisme grave (definitif)/hémoglobinurie' = "hémoglobinurie",
+    'Paludisme grave (definitif)/Troubles de la conscience' = "Troubles de la conscience",
+    'Paludisme grave (definitif)/acidose' = "acidose",
+    'Paludisme grave (definitif)/Paludisme congénital' = "Paludisme congénital",
+    'Paludisme grave (definitif)/Paludisme néonatal' = "Paludisme néonatal",
+    '12.TDR' = "TDR",
+    '13. GE' = "GE",
+    duree_hospitalisation = "Durée de l'hospitalisation (jours)",
+    duree_hospitalisation_bis = "Durée de l'hospitalisation (jours)",
+    palu_isole = "Paludisme isolé",
+    'Infection respiratoire aigue' = "Type d'infection respiratoire aigue",
+    '7. Antécédents/Asthme' = "Asthme",
+    mode_sortie = "Mode de sortie",
+    '9. Hyperthermie' = "Hyperthermie",
+    '8. Etat nutritionnel' = "Etat nutritionnel"
+
+  )
+
+```
+
+#I.	Epidémiologie
+##Répartition en fonction de l’âge, du sexe des patients
+```{r}
+pediatrie %>%
+  select(age_annee,age_class_bis,'3. Sexe',mois_admission) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+##Répartition des patients selon l’âge en fonction du sexe
+```{r}
+pediatrie %>%
+  select(age_class_bis,'3. Sexe') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    by = '3. Sexe',
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    ),
+    percent = "row"
+  )%>%bold_labels()%>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_p(t=0.05)
+
+```
+
+#II.	Etude des facteurs liés à la morbi-mortalité
+##Répartition des patients selon le lieu de provenance
+```{r}
+pediatrie %>%
+  select('5. Lieu de provenance','Antécédent de vaccination','11. Hb','21. Mode de sortie' 
+) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+
+##Le motif de consultation
+```{r}
+pediatrie %>%
+  select('6. Motif d’admission /Fièvre',	'6. Motif d’admission /douleur',	
+  '6. Motif d’admission /vomissement'	,'6. Motif d’admission /Pâleur', 	'6. Motif d’admission /diarrhée',
+  '6. Motif d’admission /convulsion',	'6. Motif d’admission /toux', 	'6. Motif d’admission /dyspnée'	,
+  '6. Motif d’admission /hémoglobinurie',	'6. Motif d’admission /Pleurs incessants',	
+  '6. Motif d’admission /Amaigrissement',	'6. Motif d’admission /LA inexistant',	'6. Motif d’admission /LA fétide',
+  '6. Motif d’admission /LA méconial',	'6. Motif d’admission /LA purée de pois',	'6. Motif d’admission /Asthénie',
+  '6. Motif d’admission /Refus de téter',	'6. Motif d’admission /Irritabilité',
+  '6. Motif d’admission /Altération de la conscience'	,'6. Motif d’admission /ictère'	,'6. Motif d’admission /Hypotrophie',
+  '6. Motif d’admission /Macrosomie',	'6. Motif d’admission /Prématurité',	'6. Motif d’admission /Post maturité',
+  '6. Motif d’admission /Rupture prolongée des membranes',	'6. Motif d’admission /Fièvre maternelle',
+  '6. Motif d’admission /autres',"Autres motif d'admission" 
+) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+#III.	Morbi-mortalité des principales affections hospitalisées.
+####Répartition des patients selon le diagnostic final
+```{r}
+pediatrie %>%
+  select('Diagnostic définitif /Paludisme grave','Diagnostic définitif /Infection respiratoire aiguë', 	
+    'Diagnostic définitif /Sd infectieux non documenté','Diagnostic définitif / MPE',
+    'Diagnostic définitif / Salmonellose','Diagnostic définitif /Septicémie néonatale',
+    'Diagnostic définitif /Septicémie du NRS et plus',
+    'Diagnostic définitif /Autre germe','Diagnostic définitif /Leucémie','Diagnostic définitif /Lymphome',
+    'Diagnostic définitif /EAI','Diagnostic définitif /Fièvre éruptive',
+    'Diagnostic définitif /Infection digestive d’étiologie indéterminée',
+    'Diagnostic définitif /Fièvre au long cours non documentée',
+    'Diagnostic définitif /Anémie d’étiologie indéterminée','Diagnostic définitif /Infection urinaire',
+    'Diagnostic définitif /Autres','Diagnostic définitif /Indéterminé',mois_admission) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+
+
+##Le paludisme
+
+###Répartition des patients suivant les manifestations du paludisme grave
+```{r}
+pediatrie_palu <- subset(pediatrie, palu_statut== 1)
+pediatrie_palu %>%
+  select(age_class_bis,'Paludisme grave (definitif)/anémie','Paludisme grave (definitif)/convulsions',
+    'Paludisme grave (definitif)/Ictère',
+    'Paludisme grave (definitif)/prostration',	'Paludisme grave (definitif)/hypoglycémie',
+    'Paludisme grave (definitif)/Insuffisance rénale','Paludisme grave (definitif)/collapsus cardiovasculaire',
+    'Paludisme grave (definitif)/syndrome hémorragique','Paludisme grave (definitif)/Œdème pulmonaire',
+    'Paludisme grave (definitif)/hémoglobinurie','Paludisme grave (definitif)/Troubles de la conscience',
+    'Paludisme grave (definitif)/acidose',	'Paludisme grave (definitif)/Paludisme congénital',
+    'Paludisme grave (definitif)/Paludisme néonatal') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+###Représentation des cas de paludisme de paludisme chez les nouveau-nés 
+```{r}
+pediatrie_palu_nouveau_ne <- subset(pediatrie_palu, age_statut== "En jours" )
+pediatrie_palu_nouveau_ne %>%
+  select('Paludisme grave (definitif)/Paludisme congénital',
+    'Paludisme grave (definitif)/Paludisme néonatal') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+###Répartition des cas de paludisme selon le taux d’hémoglobine
+```{r}
+pediatrie_palu %>%
+  select('11. Hb') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+###Répartition des cas de paludisme selon la parasitémie
+```{r}
+pediatrie_palu %>%
+  select('12.TDR','13. GE',duree_hospitalisation,palu_isole) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    type = c("duree_hospitalisation")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+###Répartition des cas de paludisme associé à d’autres diagnostics
+```{r}
+pediatrie_palu_associe <- subset(pediatrie_palu, palu_isole==0)
+pediatrie_palu_associe %>%
+  select(
+    'Diagnostic définitif /Infection respiratoire aiguë', 	
+    'Diagnostic définitif /Sd infectieux non documenté','Diagnostic définitif / MPE',
+    'Diagnostic définitif /Septicémie néonatale',
+    'Diagnostic définitif /Septicémie du NRS et plus',
+    'Diagnostic définitif /Leucémie',
+    'Diagnostic définitif /EAI','Diagnostic définitif /Fièvre éruptive',
+    'Diagnostic définitif /Infection digestive d’étiologie indéterminée',
+    'Diagnostic définitif /Infection urinaire',
+    'Diagnostic définitif /Autres','Precisez autres diagnostic final' 
+  ) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("duree_hospitalisation")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+###Répartition des cas de paludismes selon le mode de sortie
+```{r}
+pediatrie_palu %>%
+  select('21. Mode de sortie') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("duree_hospitalisation")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+
+
+###Répartition des décès liés au paludisme grave selon les manifestations cliniques
+```{r}
+pediatrie_palu_deces <- subset(pediatrie_palu, mode_sortie== "décès")
+pediatrie_palu_deces %>%
+  select('Paludisme grave (definitif)/anémie','Paludisme grave (definitif)/convulsions',
+    'Paludisme grave (definitif)/Ictère','Paludisme grave (definitif)/prostration',	
+    'Paludisme grave (definitif)/hypoglycémie',
+    'Paludisme grave (definitif)/Insuffisance rénale',
+    'Paludisme grave (definitif)/collapsus cardiovasculaire',
+    'Paludisme grave (definitif)/syndrome hémorragique','Paludisme grave (definitif)/Œdème pulmonaire',
+    'Paludisme grave (definitif)/hémoglobinurie','Paludisme grave (definitif)/Troubles de la conscience',
+    'Paludisme grave (definitif)/acidose',	'Paludisme grave (definitif)/Paludisme congénital',
+    'Paludisme grave (definitif)/Paludisme néonatal') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+##Nouveau né database
+```{r}
+pediatrie_nouveau_ne <- subset(pediatrie, age_statut== "En jours")
+```
+
+##Infections néonatales (INN)
+###Génerale
+```{r}
+pediatrie_INN <- subset(pediatrie_nouveau_ne, INN== 1)
+pediatrie_INN %>%
+  select(age_class_bis_3,'5. Lieu de provenance','Autres lieu de provenances','3. Sexe',mois_admission,'21. Mode de sortie',
+         '6. Motif d’admission /ictère','6. Motif d’admission /Prématurité') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+###Répartition selon les motifs d’admission des INN
+```{r}
+pediatrie_INN %>%
+  select('6. Motif d’admission /Fièvre',	'6. Motif d’admission /douleur',	
+  '6. Motif d’admission /vomissement'	,'6. Motif d’admission /Pâleur', 	'6. Motif d’admission /diarrhée',
+  '6. Motif d’admission /convulsion',	'6. Motif d’admission /toux', 	'6. Motif d’admission /dyspnée'	,
+  '6. Motif d’admission /hémoglobinurie',	'6. Motif d’admission /Pleurs incessants',	
+  '6. Motif d’admission /Amaigrissement',	'6. Motif d’admission /LA inexistant',	'6. Motif d’admission /LA fétide',
+  '6. Motif d’admission /LA méconial',	'6. Motif d’admission /LA purée de pois',	'6. Motif d’admission /Asthénie',
+  '6. Motif d’admission /Refus de téter',	'6. Motif d’admission /Irritabilité',
+  '6. Motif d’admission /Altération de la conscience'	,'6. Motif d’admission /ictère'	,'6. Motif d’admission /Hypotrophie',
+  '6. Motif d’admission /Macrosomie',	'6. Motif d’admission /Prématurité',	'6. Motif d’admission /Post maturité',
+  '6. Motif d’admission /Rupture prolongée des membranes',	'6. Motif d’admission /Fièvre maternelle',
+  '6. Motif d’admission /autres',"Autres motif d'admission" 
+) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+
+##encéphalopathies anoxo-ischémiques (EAI)
+###Génerale
+```{r}
+pediatrie_EAI <- subset(pediatrie_nouveau_ne, EAI== 1)
+pediatrie_EAI %>%
+  select(age_class_bis_3,'5. Lieu de provenance','3. Sexe',mois_admission,mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+###Répartition selon les motifs d’admission des EAI
+```{r}
+pediatrie_EAI %>%
+  select('6. Motif d’admission /Fièvre',	'6. Motif d’admission /douleur',	
+  '6. Motif d’admission /vomissement'	,'6. Motif d’admission /Pâleur', 	'6. Motif d’admission /diarrhée',
+  '6. Motif d’admission /convulsion',	'6. Motif d’admission /toux', 	'6. Motif d’admission /dyspnée'	,
+  '6. Motif d’admission /hémoglobinurie',	'6. Motif d’admission /Pleurs incessants',	
+  '6. Motif d’admission /Amaigrissement',	'6. Motif d’admission /LA inexistant',	'6. Motif d’admission /LA fétide',
+  '6. Motif d’admission /LA méconial',	'6. Motif d’admission /LA purée de pois',	'6. Motif d’admission /Asthénie',
+  '6. Motif d’admission /Refus de téter',	'6. Motif d’admission /Irritabilité',
+  '6. Motif d’admission /Altération de la conscience'	,'6. Motif d’admission /ictère'	,'6. Motif d’admission /Hypotrophie',
+  '6. Motif d’admission /Macrosomie',	'6. Motif d’admission /Prématurité',	'6. Motif d’admission /Post maturité',
+  '6. Motif d’admission /Rupture prolongée des membranes',	'6. Motif d’admission /Fièvre maternelle',
+  '6. Motif d’admission /autres',"Autres motif d'admission" 
+) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+```
+
+### Repartition de EAI en fonction de INN
+```{r}
+pediatrie_nouveau_ne %>%
+  select(EAI_bis,INN) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    by = INN,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+
+### INN et EAI
+###Quelques caractéristiques
+```{r}
+pediatrie_EAI_INN <- subset(pediatrie_nouveau_ne, EAI_INN == 1)
+pediatrie_EAI_INN %>%
+  select(age_class_bis_3,'5. Lieu de provenance','3. Sexe',mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+##Les infections respiratoires aiguës (IRA) basses
+###Répartition des patients selon quelques caractéristiques
+```{r}
+pediatrie_ira <- subset(pediatrie, ira_statut== 1)
+pediatrie_ira %>%
+  select(age_class,'3. Sexe',mois_admission,'Infection respiratoire aigue',mode_sortie,'7. Antécédents/Asthme') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+###Taux de mortalité des différents types d’IRA
+```{r}
+pediatrie_ira %>%
+  select('Infection respiratoire aigue',mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    ),
+    percent = "row",
+  )%>%bold_labels()%>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_p(t=0.05)
+```
+
+##Les infections digestives d’étiologie non documentée 
+```{r}
+pediatrie_idei <- subset(pediatrie, idei_statut== 1)
+pediatrie_idei %>%
+  select(age_class,'3. Sexe',mode_sortie,'8. Etat nutritionnel') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+##Syndrome infectieux non documenté (inclure aussi l’item septicémie du NRS et plus non documenté
+```{r}
+pediatrie_sdi_nrs <- subset(pediatrie, sdi_nrs == 1)
+pediatrie_sdi_nrs %>%
+  select(age_class,'3. Sexe',mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+
+
+##Anémie d’étiologie non documentée
+```{r}
+pediatrie_anemie <- subset(pediatrie, anemie_statut == 1)
+pediatrie_anemie %>%
+  select(age_class,'11. Hb',mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+
+
+
+##Séropositifs pour le VIH/SIDA
+```{r}
+pediatrie_vih <- subset(pediatrie, vih_statut== 1)
+pediatrie_vih %>%
+  select(age_class_bis_2,'3. Sexe',age_class_bis,'11. Hb','9. Hyperthermie','8. Etat nutritionnel',mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+
+
+##Drépanocytose
+###Répartition des patients selon quelques caractéristiques
+```{r}
+pediatrie_drepano <- subset(pediatrie, drepano_statut == 1)
+pediatrie_drepano %>%
+  select('3. Sexe',age_annee,age_class_bis,'11. Hb','Type de Drépanocytose',
+         mois_admission,mode_sortie,duree_hospitalisation) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    type = c("age_annee","duree_hospitalisation")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+###Répartition selon les diagnostics retenus
+```{r}
+pediatrie_drepano %>%
+  select('Diagnostic définitif /Paludisme grave','Diagnostic définitif /Infection respiratoire aiguë', 	
+    'Diagnostic définitif /Sd infectieux non documenté','Diagnostic définitif /Septicémie du NRS et plus',
+    'Diagnostic définitif /Autres','Precisez autres diagnostic final') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+##La malnutrition protéino-énergétique (MPE)
+###
+```{r}
+pediatrie_MPE <- subset(pediatrie, MPE_statut== 1)
+pediatrie_MPE %>%
+  select('3. Sexe',age_class_bis,'8. Etat nutritionnel',mode_sortie) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+###Répartition des cas de MPE selon les diagnostics retenus
+```{r}
+pediatrie_MPE %>%
+  select('Diagnostic définitif /Paludisme grave','Diagnostic définitif /Infection respiratoire aiguë', 	
+    'Diagnostic définitif /Sd infectieux non documenté',
+    'Diagnostic définitif / Salmonellose','Diagnostic définitif /Septicémie néonatale',
+    'Diagnostic définitif /Septicémie du NRS et plus','Diagnostic définitif /Leucémie','Diagnostic définitif /Lymphome',
+    'Diagnostic définitif /EAI','Diagnostic définitif /Fièvre éruptive',
+    'Diagnostic définitif /Infection digestive d’étiologie indéterminée',
+    'Diagnostic définitif /Fièvre au long cours non documentée',
+    'Diagnostic définitif /Anémie d’étiologie indéterminée','Diagnostic définitif /Infection urinaire',
+    'Diagnostic définitif /Autres','Precisez autres diagnostic final') %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+
+#IV. Etude de la mortalité globale
+```{r}
+pediatrie_deces <- subset(pediatrie, mode_sortie== "décès")
+pediatrie_deces %>%
+  select('3. Sexe',age_class_bis,mois_admission,'5. Lieu de provenance',
+         "Antécédent de vaccination",duree_hospitalisation_bis) %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    #by = mode_sortie,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()
+
+```
+##Ne pas tenir compte de ce tableau
+```{r}
+pediatrie %>%
+  select(deces,'5. Lieu de provenance',"Antécédent de vaccination") %>%
+  tbl_summary(
+    digits =all_categorical()~ c(0,1),
+    by = deces,
+    #type = c("age_annee")~"continuous2",
+    statistic = list(
+      all_categorical() ~ c("{n} ({p})"),
+      all_continuous2()~c("{mean} ({sd})", "{min}-{max}")
+    )
+  )%>%bold_labels()%>%
+  add_overall(last = T)%>%
+  add_p(pvalue_fun = ~style_pvalue(.x, digits = 3))%>%
+  separate_p_footnotes()%>%
+  bold_p(t=0.05)
+
+```
